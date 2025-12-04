@@ -9,7 +9,9 @@ import {
 } from "@excalidraw/element";
 import {
   elementOverlapsWithFrame,
+  getContainingFrame,
   getTargetFrame,
+  isFrameLikeElement,
   shouldApplyFrameClip,
 } from "@excalidraw/element";
 
@@ -279,6 +281,12 @@ const _renderStaticScene = ({
 
   const inFrameGroupsMap = new Map<string, boolean>();
 
+  // Determine if we're in presentation mode and which frame is active
+  const isPresentationMode = appState.presentationMode?.enabled;
+  const activeFrame =
+    isPresentationMode &&
+    appState.presentationMode.frames[appState.presentationMode.currentFrameIndex];
+
   // Paint visible elements
   visibleElements
     .filter((el) => !isIframeLikeElement(el))
@@ -296,6 +304,17 @@ const _renderStaticScene = ({
         }
 
         context.save();
+
+        // Dim elements outside the active frame during presentation
+        if (isPresentationMode && activeFrame) {
+          const containingFrame = getContainingFrame(element, elementsMap);
+          const isInActiveFrame =
+            containingFrame?.id === activeFrame.id ||
+            (isFrameLikeElement(element) && element.id === activeFrame.id);
+          if (!isInActiveFrame) {
+            context.globalAlpha = 0.3; // Dim non-active frame elements
+          }
+        }
 
         if (
           frameId &&

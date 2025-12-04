@@ -170,6 +170,12 @@
     "copyElementLink": "Copy link to object",
     "linkToElement": "Link to object",
     "wrapSelectionInFrame": "Wrap selection in frame",
+    "startPresentation": "Start presentation",
+    "stopPresentation": "Stop presentation",
+    "nextFrame": "Next frame",
+    "previousFrame": "Previous frame",
+    "createFramesToPresent": "Create frames on your canvas to start a presentation",
+    "readyToPresent": "Ready to present {count} frame{plural}",
     "tab": "Tab",
     "shapeSwitch": "Switch shape"
   },
@@ -380,7 +386,9 @@
     "sceneContent": "Scene content:"
   },
   "shareDialog": {
-    "or": "Or"
+    "or": "Or",
+    "presentation_link_button": "Share as Presentation",
+    "presentation_link_description": "Share a link that automatically starts presentation mode"
   },
   "roomDialog": {
     "desc_intro": "Invite people to collaborate on your drawing.",

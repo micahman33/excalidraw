@@ -207,6 +207,8 @@ export type StaticCanvasAppState = Readonly<
     suggestedBinding: AppState["suggestedBinding"];
     // Cropping
     croppingElementId: AppState["croppingElementId"];
+    // Presentation mode
+    presentationMode: AppState["presentationMode"];
   }
 >;
 
@@ -458,6 +460,12 @@ export interface AppState {
   // and also remove groupId from this map
   lockedMultiSelections: { [groupId: string]: true };
   bindMode: BindMode;
+  /** presentation mode state */
+  presentationMode: {
+    enabled: boolean;
+    currentFrameIndex: number;
+    frames: readonly NonDeleted<ExcalidrawFrameLikeElement>[];
+  };
 }
 
 export type SearchMatch = {

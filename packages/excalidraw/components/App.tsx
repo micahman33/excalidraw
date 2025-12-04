@@ -325,9 +325,16 @@ import {
 import { createRedoAction, createUndoAction } from "../actions/actionHistory";
 import { actionTextAutoResize } from "../actions/actionTextAutoResize";
 import { actionToggleViewMode } from "../actions/actionToggleViewMode";
+import {
+  actionStartPresentation,
+  actionStopPresentation,
+  actionNextFrame,
+  actionPreviousFrame,
+} from "../actions/actionPresentation";
 import { ActionManager } from "../actions/manager";
 import { actions } from "../actions/register";
 import { getShortcutFromShortcutName } from "../actions/shortcuts";
+import { getFramesInOrder } from "../utils/presentation";
 import { trackEvent } from "../analytics";
 import { AnimationFrameHandler } from "../animation-frame-handler";
 import {
@@ -3200,6 +3207,52 @@ class App extends React.Component<AppProps, AppState> {
     if (prevState.viewModeEnabled !== this.state.viewModeEnabled) {
       this.addEventListeners();
       this.deselectElements();
+    }
+
+    // Sync presentation frames when frames change
+    if (this.state.presentationMode.enabled) {
+      const currentFrames = getFramesInOrder(this.scene);
+      const prevFrames = prevState.presentationMode.frames;
+      const currentFrameIndex = this.state.presentationMode.currentFrameIndex;
+      const currentFrame = currentFrames[currentFrameIndex];
+
+      // Update frameToHighlight to highlight the current frame
+      if (currentFrame && currentFrame.id !== this.state.frameToHighlight?.id) {
+        this.setState({ frameToHighlight: currentFrame });
+      }
+
+      if (
+        currentFrames.length !== prevFrames.length ||
+        currentFrames.some(
+          (frame, index) => frame.id !== prevFrames[index]?.id,
+        )
+      ) {
+        // Frames changed, update presentation mode
+        const currentFrameId =
+          prevFrames[prevState.presentationMode.currentFrameIndex]?.id;
+        const newIndex = currentFrames.findIndex(
+          (frame) => frame.id === currentFrameId,
+        );
+        const updatedIndex =
+          newIndex >= 0
+            ? newIndex
+            : Math.min(
+                prevState.presentationMode.currentFrameIndex,
+                currentFrames.length - 1,
+              );
+        const updatedFrame = currentFrames[updatedIndex];
+        this.setState({
+          presentationMode: {
+            ...this.state.presentationMode,
+            frames: currentFrames,
+            currentFrameIndex: updatedIndex,
+          },
+          frameToHighlight: updatedFrame || null,
+        });
+      }
+    } else if (prevState.presentationMode.enabled && !this.state.presentationMode.enabled) {
+      // Presentation mode was disabled, clear frame highlight
+      this.setState({ frameToHighlight: null });
     }
 
     // cleanup

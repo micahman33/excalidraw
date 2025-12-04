@@ -25,7 +25,7 @@ import "./ShareDialog.scss";
 
 import type { CollabAPI } from "../collab/Collab";
 
-type OnExportToBackend = () => void;
+type OnExportToBackend = (asPresentation?: boolean) => void;
 type ShareDialogType = "share" | "collaborationOnly";
 
 export const shareDialogStateAtom = atom<
@@ -231,10 +231,35 @@ const ShareDialogPicker = (props: ShareDialogProps) => {
               label={t("exportDialog.link_button")}
               icon={LinkIcon}
               onClick={async () => {
-                await props.onExportToBackend();
+                await props.onExportToBackend(false);
                 props.handleClose();
               }}
             />
+          </div>
+
+          <div
+            className="ShareDialog__picker__button"
+            style={{ marginTop: "0.5rem" }}
+          >
+            <FilledButton
+              size="large"
+              label={t("shareDialog.presentation_link_button")}
+              icon={LinkIcon}
+              onClick={async () => {
+                await props.onExportToBackend(true);
+                props.handleClose();
+              }}
+            />
+          </div>
+          <div
+            className="ShareDialog__picker__description"
+            style={{
+              marginTop: "0.5rem",
+              fontSize: "0.875rem",
+              color: "var(--text-secondary-color, #666)",
+            }}
+          >
+            {t("shareDialog.presentation_link_description")}
           </div>
         </>
       )}

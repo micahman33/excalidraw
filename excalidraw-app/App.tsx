@@ -138,8 +138,8 @@ import { ExcalidrawPlusIframeExport } from "./ExcalidrawPlusIframeExport";
 
 import "./index.scss";
 
-import { ExcalidrawPlusPromoBanner } from "./components/ExcalidrawPlusPromoBanner";
 import { AppSidebar } from "./components/AppSidebar";
+import { PresentationOverlay } from "./components/PresentationOverlay";
 
 import type { CollabAPI } from "./collab/Collab";
 
@@ -632,6 +632,7 @@ const ExcalidrawWrapper = () => {
       collabAPI.syncElements(elements);
     }
 
+
     // this check is redundant, but since this is a hot path, it's best
     // not to evaludate the nested expression every time
     if (!LocalData.isSavePaused()) {
@@ -675,6 +676,104 @@ const ExcalidrawWrapper = () => {
     }
   };
 
+  const presentationStartedRef = useRef(false);
+
+  // Check for presentation mode URL parameter when API is ready
+  useEffect(() => {
+    if (!excalidrawAPI || presentationStartedRef.current) {
+      return;
+    }
+
+    const searchParams = new URLSearchParams(window.location.search);
+    const presentationParam = searchParams.get("presentation");
+    if (presentationParam !== "true") {
+      return;
+    }
+
+    // Wait a bit for scene to be ready, then check and start presentation
+    const checkAndStartPresentation = () => {
+      const elements = excalidrawAPI.getSceneElements();
+      if (elements.length === 0) {
+        // Retry if no elements yet
+        setTimeout(checkAndStartPresentation, 300);
+        return;
+      }
+
+      presentationStartedRef.current = true;
+
+      Promise.all([
+        import("@excalidraw/excalidraw/utils/presentation"),
+        import("@excalidraw/element"),
+        import("@excalidraw/excalidraw/actions/actionPresentation"),
+      ]).then(
+        ([
+          { getFramesInOrder },
+          { isFrameLikeElement },
+          { actionStartPresentation },
+        ]) => {
+          // Try to use the action if we can access the actionManager
+          const app = (excalidrawAPI as any).app;
+          if (app?.actionManager) {
+            try {
+              // Use the action which handles everything correctly
+              app.actionManager.executeAction(actionStartPresentation);
+              return;
+            } catch (e) {
+              console.warn("Failed to execute presentation action:", e);
+              // Fall through to manual approach
+            }
+          }
+
+          // Fallback: manually start presentation
+          const frames = elements.filter(isFrameLikeElement) as any[];
+
+          if (frames.length > 0) {
+            // Try to get sorted frames from scene, fallback to unsorted
+            let framesToUse = frames;
+            try {
+              const scene = app?.scene;
+              if (scene) {
+                const sortedFrames = getFramesInOrder(scene);
+                if (sortedFrames.length > 0) {
+                  framesToUse = sortedFrames as any[];
+                }
+              }
+            } catch (e) {
+              // Fallback to unsorted frames
+            }
+
+            const firstFrame = framesToUse[0];
+
+            // Navigate to first frame FIRST (like the action does)
+            excalidrawAPI.scrollToContent(firstFrame, {
+              fitToViewport: true,
+              viewportZoomFactor: 0.9,
+              animate: true,
+            });
+
+            // Then update state - use a small delay to ensure scroll happens first
+            setTimeout(() => {
+              excalidrawAPI.updateScene({
+                appState: {
+                  presentationMode: {
+                    enabled: true,
+                    currentFrameIndex: 0,
+                    frames: framesToUse,
+                  },
+                  openSidebar: null,
+                  frameToHighlight: firstFrame || null,
+                },
+              });
+            }, 50);
+          }
+        },
+      );
+    };
+
+    // Start checking after a delay
+    setTimeout(checkAndStartPresentation, 500);
+  }, [excalidrawAPI]);
+
   const [latestShareableLink, setLatestShareableLink] = useState<string | null>(
     null,
   );
@@ -683,6 +782,7 @@ const ExcalidrawWrapper = () => {
     exportedElements: readonly NonDeletedExcalidrawElement[],
     appState: Partial<AppState>,
     files: BinaryFiles,
+    asPresentation?: boolean,
   ) => {
     if (exportedElements.length === 0) {
       throw new Error(t("alerts.cannotExportEmptyCanvas"));
@@ -697,6 +797,7 @@ const ExcalidrawWrapper = () => {
             : getDefaultAppState().viewBackgroundColor,
         },
         files,
+        { asPresentation },
       );
 
       if (errorMessage) {
@@ -857,12 +958,6 @@ const ExcalidrawWrapper = () => {
 
           return (
             <div className="excalidraw-ui-top-right">
-              {excalidrawAPI?.getEditorInterface().formFactor === "desktop" && (
-                <ExcalidrawPlusPromoBanner
-                  isSignedIn={isExcalidrawPlusSignedUser}
-                />
-              )}
-
               {collabError.message && <CollabError collabError={collabError} />}
               <LiveCollaborationTrigger
                 isCollaborating={isCollaborating}
@@ -940,13 +1035,14 @@ const ExcalidrawWrapper = () => {
 
         <ShareDialog
           collabAPI={collabAPI}
-          onExportToBackend={async () => {
+          onExportToBackend={async (asPresentation?: boolean) => {
             if (excalidrawAPI) {
               try {
                 await onExportToBackend(
                   excalidrawAPI.getSceneElements(),
                   excalidrawAPI.getAppState(),
                   excalidrawAPI.getFiles(),
+                  asPresentation,
                 );
               } catch (error: any) {
                 setErrorMessage(error.message);
@@ -956,6 +1052,7 @@ const ExcalidrawWrapper = () => {
         />
 
         <AppSidebar />
+        <PresentationOverlay />
 
         {errorMessage && (
           <ErrorDialog onClose={() => setErrorMessage("")}>

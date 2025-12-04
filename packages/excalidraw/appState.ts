@@ -128,6 +128,11 @@ export const getDefaultAppState = (): Omit<
     lockedMultiSelections: {},
     activeLockedId: null,
     bindMode: "orbit",
+    presentationMode: {
+      enabled: false,
+      currentFrameIndex: 0,
+      frames: [],
+    },
   };
 };
 
@@ -254,6 +259,7 @@ const APP_STATE_STORAGE_CONF = (<
   lockedMultiSelections: { browser: true, export: true, server: true },
   activeLockedId: { browser: false, export: false, server: false },
   bindMode: { browser: true, export: false, server: false },
+  presentationMode: { browser: false, export: false, server: false },
 });
 
 const _clearAppStateForStorage = <

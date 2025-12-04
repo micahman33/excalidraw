@@ -289,6 +289,7 @@ export const exportToBackend = async (
   elements: readonly ExcalidrawElement[],
   appState: Partial<AppState>,
   files: BinaryFiles,
+  options?: { asPresentation?: boolean },
 ): Promise<ExportToBackendResult> => {
   const encryptionKey = await generateEncryptionKey("string");
 
@@ -323,6 +324,10 @@ export const exportToBackend = async (
       // We need to store the key (and less importantly the id) as hash instead
       // of queryParam in order to never send it to the server
       url.hash = `json=${json.id},${encryptionKey}`;
+      // Add presentation parameter if sharing as presentation
+      if (options?.asPresentation) {
+        url.searchParams.set("presentation", "true");
+      }
       const urlString = url.toString();
 
       await saveFilesToFirebase({
