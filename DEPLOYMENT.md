@@ -203,6 +203,38 @@ Set these before building:
 - `VITE_APP_DISABLE_SENTRY`: Set to `true` to disable Sentry (for Docker builds)
 - `VITE_APP_ENABLE_TRACKING`: Set to `true` to enable analytics
 - `VITE_APP_GIT_SHA`: Git commit SHA (auto-set by Vercel)
+- `VITE_APP_BACKEND_V2_POST_URL`: Backend URL for sharing links (defaults to `https://json.excalidraw.com/api/v2/post/`)
+- `VITE_APP_BACKEND_V2_GET_URL`: Backend URL for loading shared links (defaults to `https://json.excalidraw.com/api/v2/`)
+
+### Important: Custom Domain Backend Configuration
+
+**If you're deploying to a custom domain**, you **must** configure your own backend server because the default Excalidraw backend (`json.excalidraw.com`) does not allow CORS requests from custom domains.
+
+**Options:**
+
+1. **Set up your own backend server** that implements the Excalidraw backend API
+2. **Use a CORS proxy** to forward requests to the Excalidraw backend
+3. **Disable sharing features** if you don't need them
+
+**Example with custom backend:**
+
+```bash
+# Build with custom backend URLs
+VITE_APP_BACKEND_V2_POST_URL=https://your-backend.com/api/v2/post/ \
+VITE_APP_BACKEND_V2_GET_URL=https://your-backend.com/api/v2/ \
+yarn build
+```
+
+**Example with CORS proxy:**
+
+```bash
+# Build with CORS proxy (e.g., Cloudflare Workers)
+VITE_APP_BACKEND_V2_POST_URL=https://your-proxy.com/api/v2/post/ \
+VITE_APP_BACKEND_V2_GET_URL=https://your-proxy.com/api/v2/ \
+yarn build
+```
+
+**For shared hosting (static files only):** See `CORS_PROXY_SETUP.md` for detailed instructions on setting up a CORS proxy using Cloudflare Workers, Vercel, or other free services.
 
 ### Example
 
@@ -212,6 +244,9 @@ VITE_APP_DISABLE_SENTRY=true yarn build
 
 # Build with tracking enabled
 VITE_APP_ENABLE_TRACKING=true yarn build
+
+# Build with custom backend
+VITE_APP_BACKEND_V2_POST_URL=https://your-backend.com/api/v2/post/ yarn build
 ```
 
 ## Production Build Commands

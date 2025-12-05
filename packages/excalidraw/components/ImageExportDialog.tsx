@@ -19,7 +19,7 @@ import {
   actionChangeProjectName,
 } from "../actions/actionExport";
 import { probablySupportsClipboardBlob } from "../clipboard";
-import { prepareElementsForExport } from "../data";
+import { prepareElementsForExport, exportCanvas } from "../data";
 import { canvasToBlob } from "../data/blob";
 import { nativeFileSystemSupported } from "../data/filesystem";
 import { useCopyStatus } from "../hooks/useCopiedIndicator";
@@ -330,6 +330,32 @@ const ImageExportModal = ({
               {t("imageExportDialog.button.copyPngToClipboard")}
             </FilledButton>
           )}
+          <FilledButton
+            className="ImageExportModal__settings__buttons__button"
+            label={t("imageExportDialog.title.exportToPowerPoint")}
+            onClick={async () => {
+              try {
+                await exportCanvas(
+                  "pptx",
+                  exportedElements,
+                  appStateSnapshot as any, // UIAppState is compatible with AppState for export purposes
+                  files,
+                  {
+                    exportBackground: exportWithBackground,
+                    viewBackgroundColor: appStateSnapshot.viewBackgroundColor,
+                    name: projectName,
+                    exportingFrame,
+                  },
+                );
+              } catch (error: any) {
+                // Show error message to user
+                alert(error.message || t("errors.exportToPowerPointFailed"));
+              }
+            }}
+            icon={downloadIcon}
+          >
+            {t("imageExportDialog.button.exportToPowerPoint")}
+          </FilledButton>
         </div>
       </div>
     </div>

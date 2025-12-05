@@ -291,6 +291,13 @@ export const exportToBackend = async (
   files: BinaryFiles,
   options?: { asPresentation?: boolean },
 ): Promise<ExportToBackendResult> => {
+  if (!BACKEND_V2_POST) {
+    return {
+      url: null,
+      errorMessage: t("alerts.couldNotCreateShareableLink") + " (Backend not configured)",
+    };
+  }
+
   const encryptionKey = await generateEncryptionKey("string");
 
   const payload = await compressData(
@@ -346,6 +353,21 @@ export const exportToBackend = async (
     return { url: null, errorMessage: t("alerts.couldNotCreateShareableLink") };
   } catch (error: any) {
     console.error(error);
+
+    // Check for CORS errors specifically
+    const isCorsError = 
+      error?.message?.includes("CORS") ||
+      error?.message?.includes("Failed to fetch") ||
+      (error?.name === "TypeError" && error?.message?.includes("fetch"));
+
+    if (isCorsError && BACKEND_V2_POST?.includes("json.excalidraw.com")) {
+      return {
+        url: null,
+        errorMessage: t("alerts.couldNotCreateShareableLink") + 
+          " (CORS error: The Excalidraw backend does not allow requests from custom domains. " +
+          "Please configure VITE_APP_BACKEND_V2_POST_URL to point to your own backend server.)",
+      };
+    }
 
     return { url: null, errorMessage: t("alerts.couldNotCreateShareableLink") };
   }

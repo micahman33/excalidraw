@@ -255,6 +255,8 @@ export const MIME_TYPES = {
   "excalidraw.png": "image/png",
   // binary
   binary: "application/octet-stream",
+  // office documents
+  pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
   // image
   ...IMAGE_MIME_TYPES,
 } as const;

@@ -129,7 +129,8 @@ export type ExportType =
   | "clipboard"
   | "clipboard-svg"
   | "backend"
-  | "svg";
+  | "svg"
+  | "pptx";
 
 export type ScrollBars = {
   horizontal: {

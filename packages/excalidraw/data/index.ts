@@ -32,6 +32,7 @@ import { exportToCanvas, exportToSvg } from "../scene/export";
 import { canvasToBlob } from "./blob";
 import { fileSave } from "./filesystem";
 import { serializeAsJSON } from "./json";
+import { exportToPowerPoint } from "./powerpoint";
 
 import type { FileSystemHandle } from "./filesystem";
 
@@ -209,6 +210,22 @@ export const exportCanvas = async (
         throw new Error(t("alerts.couldNotCopyToClipboard"));
       }
     }
+  } else if (type === "pptx") {
+    const blob = await exportToPowerPoint(elements, appState, files, {
+      exportBackground,
+      viewBackgroundColor,
+      name,
+    });
+
+    return fileSave(Promise.resolve(blob), {
+      description: "Export to PowerPoint",
+      name,
+      extension: "pptx" as any, // pptx is now in MIME_TYPES
+      mimeTypes: [
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+      ],
+      fileHandle,
+    });
   } else {
     // shouldn't happen
     throw new Error("Unsupported export type");

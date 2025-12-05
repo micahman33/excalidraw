@@ -140,6 +140,8 @@ export default defineConfig(({ mode }) => {
         },
 
         workbox: {
+          // Increase file size limit for precaching (default is 2MB)
+          maximumFileSizeToCacheInBytes: 4 * 1024 * 1024, // 4 MB
           // don't precache fonts, locales and separate chunks
           globIgnores: [
             "fonts.css",
