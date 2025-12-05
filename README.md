@@ -68,17 +68,36 @@ The Excalidraw editor (npm package) supports:
 - 🔙&nbsp;Undo / Redo.
 - 🔍&nbsp;Zoom and panning support.
 
-## Excalidraw.com
+## 🎯 What's Different in This Fork
 
-The app hosted at [excalidraw.com](https://excalidraw.com) is a minimal showcase of what you can build with Excalidraw. Its [source code](https://github.com/excalidraw/excalidraw/tree/master/excalidraw-app) is part of this repository as well, and the app features:
+This is a fork of Excalidraw with **Presentation Mode** support added. The key addition is the ability to create slide-based presentations using frames.
+
+### ✨ New Features
+
+- 🎬&nbsp;**Presentation Mode**: Transform frames into presentation slides
+  - Smooth transitions between frames
+  - Keyboard navigation (arrow keys, space, escape)
+  - Visual indicators (frame highlighting and dimming)
+  - Full-screen presentation overlay
+- 🔗&nbsp;**Presentation Sharing**: Share links that automatically start in presentation mode
+  - Share as regular board (normal view)
+  - Share as presentation (auto-starts presentation mode)
+  - URL parameter: `?presentation=true`
+- 🎨&nbsp;**Enhanced UI**: Presentation controls in sidebar and overlay
+- 📖&nbsp;**Documentation**: Complete guides for using and extending presentation mode
+
+See [PRESENTATION_MODE.md](./PRESENTATION_MODE.md) for detailed documentation.
+
+## Excalidraw.com Features
+
+The app features all standard Excalidraw capabilities plus the presentation mode additions:
 
 - 📡&nbsp;PWA support (works offline).
 - 🤼&nbsp;Real-time collaboration.
 - 🔒&nbsp;End-to-end encryption.
 - 💾&nbsp;Local-first support (autosaves to the browser).
 - 🔗&nbsp;Shareable links (export to a readonly link you can share with others).
-
-We'll be adding these features as drop-in plugins for the npm package in the future.
+- 🎬&nbsp;**Presentation Mode** (NEW): Create and share frame-based presentations.
 
 ## Quick start
 
@@ -105,9 +124,11 @@ Check out our [documentation](https://docs.excalidraw.com/docs/@excalidraw/excal
 - [VScode extension](https://marketplace.visualstudio.com/items?itemName=pomdtr.excalidraw-editor)
 - [npm package](https://www.npmjs.com/package/@excalidraw/excalidraw)
 
-## Who's integrating Excalidraw
+## Documentation
 
-[Google Cloud](https://googlecloudcheatsheet.withgoogle.com/architecture) • [Meta](https://meta.com/) • [CodeSandbox](https://codesandbox.io/) • [Obsidian Excalidraw](https://github.com/zsviczian/obsidian-excalidraw-plugin) • [Replit](https://replit.com/) • [Slite](https://slite.com/) • [Notion](https://notion.so/) • [HackerRank](https://www.hackerrank.com/) • and many others
+- **[Presentation Mode Guide](./PRESENTATION_MODE.md)**: Complete documentation of the presentation mode feature
+- **[Development Guide](./PRESENTATION_MODE_DEVELOPMENT.md)**: Guide for extending and modifying presentation mode
+- **[Deployment Guide](./DEPLOYMENT.md)**: Instructions for building and deploying the application
 
 ## Sponsors & support
 
