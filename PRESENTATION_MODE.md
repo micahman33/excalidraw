@@ -8,8 +8,11 @@ Presentation Mode allows users to create slide-based presentations using Excalid
 
 - **Frame-based slides**: Each frame on the canvas becomes a presentation slide
 - **Smooth transitions**: Automatic scrolling and zooming between frames
-- **Keyboard navigation**: Arrow keys, Space, and Escape for navigation
+- **Keyboard navigation**: Arrow keys (Left/Right) for navigation, Escape to exit
 - **Visual indicators**: Active frame highlighting and dimming of non-active frames
+- **Presentation Frame Tool**: Create frames with optimized 2:1 aspect ratio for full-screen presentations
+- **Custom frame ordering**: Drag-and-drop reordering with persistent custom order
+- **Frame thumbnails**: Visual previews of frames in the sidebar
 - **URL sharing**: Share links that automatically start in presentation mode
 - **UI controls**: Sidebar panel and overlay controls for presentation management
 
@@ -45,8 +48,9 @@ presentationMode: {
 - **`packages/excalidraw/actions/actionPresentation.ts`**: Presentation mode actions
   - `actionStartPresentation`: Initiates presentation mode
   - `actionStopPresentation`: Exits presentation mode
-  - `actionNextFrame`: Navigates to next frame
-  - `actionPreviousFrame`: Navigates to previous frame
+  - `actionNextFrame`: Navigates to next frame (Right Arrow key)
+  - `actionPreviousFrame`: Navigates to previous frame (Left Arrow key)
+  - `actionReorderFrames`: Reorders frames via drag-and-drop
 
 #### 4. UI Components
 - **`excalidraw-app/components/PresentationPanel.tsx`**: Sidebar panel for presentation controls
@@ -104,14 +108,46 @@ Navigation uses the `scrollToContent` API with these options:
    - Implemented in `staticScene.ts` by checking if element is in active frame
    - Uses `context.globalAlpha = 0.3` for dimming
 
+### Presentation Frame Tool
+
+The **Presentation Frame** tool creates frames optimized for full-screen presentations:
+
+- **Aspect Ratio**: 2:1 (width:height) - optimized for modern widescreen displays
+- **Location**: Available in the "More tools" menu (three-dot icon in toolbar)
+- **Behavior**: 
+  - Maintains 2:1 aspect ratio when creating new frames
+  - Maintains aspect ratio when resizing (if using Presentation Frame tool)
+  - Works identically to regular frames for all other features
+
+**Usage**:
+1. Click the "More tools" icon (three dots) in the toolbar
+2. Select "Presentation Frame"
+3. Click and drag on the canvas to create a frame
+4. The frame will automatically maintain a 2:1 aspect ratio
+
+**Technical Details**:
+- Tool type: `presentationFrame` (defined in `TOOL_TYPE` constant)
+- Aspect ratio enforced during creation and resize: `2 / 1`
+- Implementation: `packages/excalidraw/components/App.tsx` (dragNewElement logic)
+
 ### Frame Ordering
 
-Frames are ordered using `getFramesInOrder()` which:
-1. Gets all non-deleted frame-like elements from the scene
-2. Sorts them based on position (top-to-bottom, then left-to-right)
-3. Returns them in presentation order
+Frames can be ordered in two ways:
 
-**Note**: Frame order is determined by their position on the canvas, not creation order.
+1. **Default Order**: Uses `getFramesInOrder()` which:
+   - Gets all non-deleted frame-like elements from the scene
+   - Sorts them based on position (top-to-bottom, then left-to-right)
+   - Returns them in presentation order
+
+2. **Custom Order**: Users can reorder frames via drag-and-drop in the Presentation Panel:
+   - Custom order is stored in `appState.presentationMode.frames`
+   - Persists across sessions (saved to localStorage)
+   - New frames are appended to the end of the custom order
+   - Deleted frames are automatically removed from the order
+   - Custom order takes precedence over default scene order
+   - Order is preserved when frames are deleted and recreated
+
+**Note**: When no custom order exists, frame order is determined by their position on the canvas, not creation order.
 
 ## Code Patterns
 
@@ -214,12 +250,14 @@ export { actionMyNewAction } from "./actionPresentation";
 
 1. **Basic Functionality**:
    - [ ] Create multiple frames on canvas
+   - [ ] Create frames using Presentation Frame tool (2:1 aspect ratio)
    - [ ] Start presentation mode from sidebar
-   - [ ] Navigate forward/backward with arrow keys
-   - [ ] Navigate with Space/Shift+Space
+   - [ ] Navigate forward/backward with arrow keys (Right/Left)
    - [ ] Exit with Escape key
    - [ ] Verify frame highlighting works
    - [ ] Verify non-active frames are dimmed
+   - [ ] Reorder frames via drag-and-drop in sidebar
+   - [ ] Verify custom order persists after exiting and re-entering presentation mode
 
 2. **URL Sharing**:
    - [ ] Share as regular board (should open normally)
@@ -270,9 +308,10 @@ Add console logs in:
    - Loop presentation option
 
 2. **Frame Management**:
-   - Reorder frames in presentation
+   - ✅ Reorder frames in presentation (implemented)
+   - ✅ Frame thumbnails in sidebar (implemented)
    - Skip/hide specific frames
-   - Frame thumbnails in sidebar
+   - Frame naming/grouping
 
 3. **Presentation Controls**:
    - Fullscreen mode
@@ -298,11 +337,13 @@ When adding new features:
 ## File Reference
 
 ### Core Files
-- `packages/excalidraw/types.ts` - Type definitions
+- `packages/excalidraw/types.ts` - Type definitions (includes `presentationFrame` tool type)
 - `packages/excalidraw/appState.ts` - Default state
 - `packages/excalidraw/utils/presentation.ts` - Utility functions
 - `packages/excalidraw/actions/actionPresentation.ts` - Actions
-- `packages/excalidraw/components/App.tsx` - Frame syncing logic
+- `packages/excalidraw/actions/actionFrame.ts` - Frame actions (includes `actionSetPresentationFrameAsActiveTool`)
+- `packages/excalidraw/components/App.tsx` - Frame syncing logic and Presentation Frame tool implementation
+- `packages/common/src/constants.ts` - Tool type constants (includes `TOOL_TYPE.presentationFrame`)
 
 ### UI Files
 - `excalidraw-app/components/PresentationPanel.tsx` - Sidebar panel
@@ -337,8 +378,11 @@ When adding new features:
 ## Notes
 
 - Presentation mode closes the sidebar automatically when started
-- Frame order is based on canvas position, not creation time
+- Frame order can be customized via drag-and-drop in the Presentation Panel
+- Custom frame order persists to localStorage and survives page reloads
 - The `frameToHighlight` state is used for both presentation and regular frame selection
 - URL parameter must be in query string (`?presentation=true`), not hash
 - Presentation mode state persists during navigation but resets on page reload
+- Presentation Frame tool creates frames with 2:1 aspect ratio optimized for full-screen
+- Keyboard navigation uses only arrow keys (Left/Right) - spacebar is reserved for canvas panning
 

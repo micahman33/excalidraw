@@ -76,9 +76,15 @@ This is a fork of Excalidraw with **Presentation Mode** support added. The key a
 
 - 🎬&nbsp;**Presentation Mode**: Transform frames into presentation slides
   - Smooth transitions between frames
-  - Keyboard navigation (arrow keys, space, escape)
+  - Keyboard navigation (arrow keys for navigation, escape to exit)
   - Visual indicators (frame highlighting and dimming)
   - Full-screen presentation overlay
+  - Custom frame ordering with drag-and-drop
+  - Frame thumbnails in sidebar
+- 📐&nbsp;**Presentation Frame Tool**: Create frames with optimized 2:1 aspect ratio
+  - Perfect for full-screen presentations
+  - Maintains aspect ratio when resizing
+  - Available in the "More tools" menu
 - 🔗&nbsp;**Presentation Sharing**: Share links that automatically start in presentation mode
   - Share as regular board (normal view)
   - Share as presentation (auto-starts presentation mode)
