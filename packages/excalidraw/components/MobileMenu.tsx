@@ -134,7 +134,7 @@ export const MobileMenu = ({
         {renderWelcomeScreen && <WelcomeScreenCenterTunnel.Out />}
       </div>
 
-      {!appState.viewModeEnabled && (
+      {!appState.viewModeEnabled && !appState.presentationMode.enabled && (
         <div
           className="App-bottom-bar"
           style={{
@@ -151,6 +151,7 @@ export const MobileMenu = ({
 
           <Island className="App-toolbar">
             {!appState.viewModeEnabled &&
+              !appState.presentationMode.enabled &&
               appState.openDialog?.name !== "elementLinkSelector" &&
               renderToolbar()}
             {appState.scrolledOutside &&

@@ -3211,26 +3211,50 @@ class App extends React.Component<AppProps, AppState> {
 
     // Sync presentation frames when frames change
     if (this.state.presentationMode.enabled) {
-      const currentFrames = getFramesInOrder(this.scene);
+      const sceneFrames = getFramesInOrder(this.scene);
       const prevFrames = prevState.presentationMode.frames;
       const currentFrameIndex = this.state.presentationMode.currentFrameIndex;
-      const currentFrame = currentFrames[currentFrameIndex];
+      
+      // Preserve custom order when frames change
+      let frames = prevFrames;
+      const sceneFrameIds = new Set(sceneFrames.map(f => f.id));
+      const prevFrameIds = new Set(prevFrames.map(f => f.id));
+      
+      // Check if frames have changed
+      const framesChanged =
+        sceneFrames.length !== prevFrames.length ||
+        !sceneFrameIds.size ||
+        !prevFrames.every(f => sceneFrameIds.has(f.id)) ||
+        !sceneFrames.every(f => prevFrameIds.has(f.id));
+      
+      if (framesChanged) {
+        // Build new frame order preserving custom order where possible
+        const customOrderMap = new Map(prevFrames.map((f, idx) => [f.id, idx]));
+        const existingFrames = sceneFrames.filter(f => prevFrameIds.has(f.id));
+        const newFrames = sceneFrames.filter(f => !prevFrameIds.has(f.id));
+        
+        // Sort existing frames by custom order, then append new frames
+        existingFrames.sort((a, b) => {
+          const aOrder = customOrderMap.get(a.id) ?? Infinity;
+          const bOrder = customOrderMap.get(b.id) ?? Infinity;
+          return aOrder - bOrder;
+        });
+        
+        frames = [...existingFrames, ...newFrames];
+      }
+      
+      const currentFrame = frames[currentFrameIndex];
 
       // Update frameToHighlight to highlight the current frame
       if (currentFrame && currentFrame.id !== this.state.frameToHighlight?.id) {
         this.setState({ frameToHighlight: currentFrame });
       }
 
-      if (
-        currentFrames.length !== prevFrames.length ||
-        currentFrames.some(
-          (frame, index) => frame.id !== prevFrames[index]?.id,
-        )
-      ) {
+      if (framesChanged) {
         // Frames changed, update presentation mode
         const currentFrameId =
           prevFrames[prevState.presentationMode.currentFrameIndex]?.id;
-        const newIndex = currentFrames.findIndex(
+        const newIndex = frames.findIndex(
           (frame) => frame.id === currentFrameId,
         );
         const updatedIndex =
@@ -3238,13 +3262,13 @@ class App extends React.Component<AppProps, AppState> {
             ? newIndex
             : Math.min(
                 prevState.presentationMode.currentFrameIndex,
-                currentFrames.length - 1,
+                frames.length - 1,
               );
-        const updatedFrame = currentFrames[updatedIndex];
+        const updatedFrame = frames[updatedIndex];
         this.setState({
           presentationMode: {
             ...this.state.presentationMode,
-            frames: currentFrames,
+            frames,
             currentFrameIndex: updatedIndex,
           },
           frameToHighlight: updatedFrame || null,
@@ -4784,7 +4808,31 @@ class App extends React.Component<AppProps, AppState> {
         this.handleSkipBindMode();
       }
 
-      if (this.actionManager.handleKeyDown(event)) {
+      // Handle space bar for panning - set isHoldingSpace before actionManager
+      // so panning works even if navigation action also matches
+      if (event.key === KEYS.SPACE && gesture.pointers.size === 0) {
+        isHoldingSpace = true;
+        setCursor(this.interactiveCanvas, CURSOR_TYPE.GRAB);
+      }
+      
+      // Allow space bar panning in presentation mode - don't let navigation actions
+      // consume space key if user is already dragging (gesture.pointers.size > 0)
+      // Navigation should only work on simple space keypress, not space+drag
+      const isSpaceKey = event.key === KEYS.SPACE;
+      const isDragging = gesture.pointers.size > 0;
+      const shouldSkipActionForPanning = 
+        this.state.presentationMode.enabled && 
+        isSpaceKey && 
+        isDragging;
+      
+      if (!shouldSkipActionForPanning && this.actionManager.handleKeyDown(event)) {
+        // If action executed and we're not dragging, navigation happened
+        // If we're dragging, panning will take over
+        if (isSpaceKey && isDragging) {
+          // User is dragging - ensure panning works
+          isHoldingSpace = true;
+          setCursor(this.interactiveCanvas, CURSOR_TYPE.GRAB);
+        }
         return;
       }
 
@@ -4955,11 +5003,8 @@ class App extends React.Component<AppProps, AppState> {
           event.stopPropagation();
         }
       }
-      if (event.key === KEYS.SPACE && gesture.pointers.size === 0) {
-        isHoldingSpace = true;
-        setCursor(this.interactiveCanvas, CURSOR_TYPE.GRAB);
-        event.preventDefault();
-      }
+      // Space bar panning is now handled above before actionManager
+      // This section only handles additional space key logic if needed
 
       if (
         (event.key === KEYS.G || event.key === KEYS.S) &&
@@ -7349,7 +7394,8 @@ class App extends React.Component<AppProps, AppState> {
       setCursorForShape(this.interactiveCanvas, this.state);
     } else if (
       this.state.activeTool.type === TOOL_TYPE.frame ||
-      this.state.activeTool.type === TOOL_TYPE.magicframe
+      this.state.activeTool.type === TOOL_TYPE.magicframe ||
+      this.state.activeTool.type === TOOL_TYPE.presentationFrame
     ) {
       this.createFrameElementOnPointerDown(
         pointerDownState,
@@ -8804,7 +8850,7 @@ class App extends React.Component<AppProps, AppState> {
 
   private createFrameElementOnPointerDown = (
     pointerDownState: PointerDownState,
-    type: Extract<ToolType, "frame" | "magicframe">,
+    type: Extract<ToolType, "frame" | "magicframe" | "presentationFrame">,
   ): void => {
     const [gridX, gridY] = getGridPoint(
       pointerDownState.origin.x,
@@ -11585,6 +11631,11 @@ class App extends React.Component<AppProps, AppState> {
     });
 
     if (!isBindingElement(newElement)) {
+      const isPresentationFrame =
+        this.state.activeTool.type === TOOL_TYPE.presentationFrame &&
+        isFrameLikeElement(newElement);
+      const presentationFrameAspectRatio = isPresentationFrame ? 2 / 1 : null;
+
       dragNewElement({
         newElement,
         elementType: this.state.activeTool.type,
@@ -11594,13 +11645,15 @@ class App extends React.Component<AppProps, AppState> {
         y: gridY,
         width: distance(pointerDownState.originInGrid.x, gridX),
         height: distance(pointerDownState.originInGrid.y, gridY),
-        shouldMaintainAspectRatio: isImageElement(newElement)
-          ? !shouldMaintainAspectRatio(event)
-          : shouldMaintainAspectRatio(event),
+        shouldMaintainAspectRatio:
+          isPresentationFrame ||
+          (isImageElement(newElement)
+            ? !shouldMaintainAspectRatio(event)
+            : shouldMaintainAspectRatio(event)),
         shouldResizeFromCenter: shouldResizeFromCenter(event),
         zoom: this.state.zoom.value,
         scene: this.scene,
-        widthAspectRatio: aspectRatio,
+        widthAspectRatio: presentationFrameAspectRatio || aspectRatio,
         originOffset: this.state.originSnapOffset,
         informMutation,
       });
@@ -11613,7 +11666,8 @@ class App extends React.Component<AppProps, AppState> {
     // highlight elements that are to be added to frames on frames creation
     if (
       this.state.activeTool.type === TOOL_TYPE.frame ||
-      this.state.activeTool.type === TOOL_TYPE.magicframe
+      this.state.activeTool.type === TOOL_TYPE.magicframe ||
+      this.state.activeTool.type === TOOL_TYPE.presentationFrame
     ) {
       this.setState({
         elementsToHighlight: getElementsInResizingFrame(
@@ -11813,6 +11867,16 @@ class App extends React.Component<AppProps, AppState> {
       });
     }
 
+    // For presentation frames, always maintain aspect ratio (2:1)
+    const isResizingPresentationFrame =
+      this.state.activeTool.type === TOOL_TYPE.presentationFrame &&
+      selectedFrames.length > 0;
+    const shouldMaintainAspectRatioForResize =
+      isResizingPresentationFrame ||
+      (selectedElements.some((element) => isImageElement(element))
+        ? !shouldMaintainAspectRatio(event)
+        : shouldMaintainAspectRatio(event));
+
     if (
       transformElements(
         pointerDownState.originalElements,
@@ -11821,9 +11885,7 @@ class App extends React.Component<AppProps, AppState> {
         this.scene,
         shouldRotateWithDiscreteAngle(event),
         shouldResizeFromCenter(event),
-        selectedElements.some((element) => isImageElement(element))
-          ? !shouldMaintainAspectRatio(event)
-          : shouldMaintainAspectRatio(event),
+        shouldMaintainAspectRatioForResize,
         resizeX,
         resizeY,
         pointerDownState.resize.center.x,

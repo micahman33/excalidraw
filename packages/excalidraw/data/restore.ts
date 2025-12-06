@@ -105,6 +105,7 @@ export const AllowedExcalidrawActiveTools: Record<
   eraser: false,
   custom: true,
   frame: true,
+  presentationFrame: true,
   embeddable: true,
   hand: true,
   laser: false,

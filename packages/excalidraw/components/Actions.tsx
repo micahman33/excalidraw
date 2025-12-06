@@ -1068,6 +1068,7 @@ export const ShapesSwitcher = ({
   ] as const;
 
   const frameToolSelected = activeTool.type === "frame";
+  const presentationFrameToolSelected = activeTool.type === "presentationFrame";
   const laserToolSelected = activeTool.type === "laser";
   const lassoToolSelected =
     isFullStylesPanel &&
@@ -1219,6 +1220,14 @@ export const ShapesSwitcher = ({
             selected={frameToolSelected}
           >
             {t("toolBar.frame")}
+          </DropdownMenu.Item>
+          <DropdownMenu.Item
+            onSelect={() => app.setActiveTool({ type: "presentationFrame" })}
+            icon={frameToolIcon}
+            data-testid="toolbar-presentation-frame"
+            selected={presentationFrameToolSelected}
+          >
+            {t("toolBar.presentationFrame")}
           </DropdownMenu.Item>
           <DropdownMenu.Item
             onSelect={() => app.setActiveTool({ type: "embeddable" })}

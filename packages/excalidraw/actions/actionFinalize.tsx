@@ -331,12 +331,19 @@ export const actionFinalize = register<FormData>({
       captureUpdate: CaptureUpdateAction.IMMEDIATELY,
     };
   },
-  keyTest: (event, appState) =>
-    (event.key === KEYS.ESCAPE &&
-      (appState.selectedLinearElement?.isEditing ||
-        (!appState.newElement && appState.multiElement === null))) ||
-    ((event.key === KEYS.ESCAPE || event.key === KEYS.ENTER) &&
-      appState.multiElement !== null),
+  keyTest: (event, appState) => {
+    // Don't match ESC in presentation mode - let actionStopPresentation handle it
+    if (event.key === KEYS.ESCAPE && appState.presentationMode?.enabled) {
+      return false;
+    }
+    return (
+      (event.key === KEYS.ESCAPE &&
+        (appState.selectedLinearElement?.isEditing ||
+          (!appState.newElement && appState.multiElement === null))) ||
+      ((event.key === KEYS.ESCAPE || event.key === KEYS.ENTER) &&
+        appState.multiElement !== null)
+    );
+  },
   PanelComponent: ({ appState, updateData, data }) => (
     <ToolButton
       type="button"

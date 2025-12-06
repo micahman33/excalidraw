@@ -120,6 +120,7 @@ export const MobileToolBar = ({
   }, [activeTool.type]);
 
   const frameToolSelected = activeTool.type === "frame";
+  const presentationFrameToolSelected = activeTool.type === "presentationFrame";
   const laserToolSelected = activeTool.type === "laser";
   const embeddableToolSelected = activeTool.type === "embeddable";
 
@@ -168,7 +169,7 @@ export const MobileToolBar = ({
     if (showImageToolOutside && tool === "image") {
       return false;
     }
-    if (showFrameToolOutside && tool === "frame") {
+    if (showFrameToolOutside && (tool === "frame" || tool === "presentationFrame")) {
       return false;
     }
     return true;
@@ -179,7 +180,7 @@ export const MobileToolBar = ({
       ? TextIcon
       : activeTool.type === "image"
       ? ImageIcon
-      : activeTool.type === "frame"
+      : activeTool.type === "frame" || activeTool.type === "presentationFrame"
       ? frameToolIcon
       : activeTool.type === "embeddable"
       ? EmbedIcon
@@ -437,6 +438,14 @@ export const MobileToolBar = ({
               {t("toolBar.frame")}
             </DropdownMenu.Item>
           )}
+          <DropdownMenu.Item
+            onSelect={() => app.setActiveTool({ type: "presentationFrame" })}
+            icon={frameToolIcon}
+            data-testid="toolbar-presentation-frame"
+            selected={presentationFrameToolSelected}
+          >
+            {t("toolBar.presentationFrame")}
+          </DropdownMenu.Item>
           <DropdownMenu.Item
             onSelect={() => app.setActiveTool({ type: "embeddable" })}
             icon={EmbedIcon}

@@ -259,7 +259,7 @@ const APP_STATE_STORAGE_CONF = (<
   lockedMultiSelections: { browser: true, export: true, server: true },
   activeLockedId: { browser: false, export: false, server: false },
   bindMode: { browser: true, export: false, server: false },
-  presentationMode: { browser: false, export: false, server: false },
+  presentationMode: { browser: true, export: false, server: false },
 });
 
 const _clearAppStateForStorage = <
@@ -287,7 +287,19 @@ const _clearAppStateForStorage = <
 };
 
 export const clearAppStateForLocalStorage = (appState: Partial<AppState>) => {
-  return _clearAppStateForStorage(appState, "browser");
+  const cleared = _clearAppStateForStorage(appState, "browser");
+  
+  // Reset presentation mode state when saving, but preserve frame order
+  if (cleared.presentationMode) {
+    cleared.presentationMode = {
+      ...cleared.presentationMode,
+      enabled: false,
+      currentFrameIndex: 0,
+      // Keep frames array to preserve custom order
+    };
+  }
+  
+  return cleared;
 };
 
 export const cleanAppStateForExport = (appState: Partial<AppState>) => {

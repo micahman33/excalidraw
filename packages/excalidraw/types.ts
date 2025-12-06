@@ -153,6 +153,7 @@ export type ToolType =
   | "hand"
   | "frame"
   | "magicframe"
+  | "presentationFrame"
   | "embeddable"
   | "laser";
 

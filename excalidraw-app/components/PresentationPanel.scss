@@ -100,3 +100,136 @@
   color: var(--text-secondary-color, #666);
   line-height: 1.6;
 }
+
+.presentation-panel__frames-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.presentation-panel__frames-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.presentation-panel__frames-header strong {
+  font-size: 0.95rem;
+  color: var(--text-primary-color, #1e1e1e);
+}
+
+.presentation-panel__frames-hint {
+  font-size: 0.8rem;
+  color: var(--text-secondary-color, #666);
+}
+
+.presentation-panel__frames {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 300px;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+}
+
+.presentation-panel__frame-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid var(--default-border-color, #e0e0e0);
+  border-radius: 6px;
+  background: var(--island-bg-color, #ffffff);
+  transition: all 0.2s ease;
+  cursor: grab;
+  user-select: none;
+
+  &:hover {
+    background: var(--hover-fill-color, #f5f5f5);
+    border-color: var(--default-border-color-hover, #d0d0d0);
+  }
+
+  &.dragging {
+    opacity: 0.5;
+    cursor: grabbing;
+  }
+
+  &.drag-over {
+    border-color: var(--color-primary, #2563eb);
+    background: var(--hover-fill-color, #f5f5f5);
+    border-style: dashed;
+  }
+}
+
+.presentation-panel__frame-thumbnail {
+  flex-shrink: 0;
+  width: 60px;
+  height: 40px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--default-border-color, #e0e0e0);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.presentation-panel__frame-thumbnail-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%);
+  border: 1px solid var(--default-border-color, #e0e0e0);
+}
+
+.presentation-panel__frame-thumbnail-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 4px;
+}
+
+.presentation-panel__frame-number-small {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-secondary-color, #666);
+}
+
+.presentation-panel__frame-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.presentation-panel__frame-title {
+  font-size: 0.85rem;
+  color: var(--text-primary-color, #1e1e1e);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.presentation-panel__frame-drag-handle {
+  flex-shrink: 0;
+  color: var(--text-secondary-color, #999);
+  cursor: grab;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem;
+  opacity: 0.6;
+  transition: opacity 0.2s ease;
+
+  .presentation-panel__frame-item:hover & {
+    opacity: 1;
+  }
+
+  .presentation-panel__frame-item.dragging & {
+    cursor: grabbing;
+  }
+}

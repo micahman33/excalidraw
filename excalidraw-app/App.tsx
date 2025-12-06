@@ -632,7 +632,6 @@ const ExcalidrawWrapper = () => {
       collabAPI.syncElements(elements);
     }
 
-
     // this check is redundant, but since this is a hot path, it's best
     // not to evaludate the nested expression every time
     if (!LocalData.isSavePaused()) {
@@ -951,8 +950,13 @@ const ExcalidrawWrapper = () => {
         handleKeyboardGlobally={true}
         autoFocus={true}
         theme={editorTheme}
-        renderTopRightUI={(isMobile) => {
+        renderTopRightUI={(isMobile, appState) => {
           if (isMobile || !collabAPI || isCollabDisabled) {
+            return null;
+          }
+
+          // Hide share button in presentation mode
+          if (appState?.presentationMode?.enabled) {
             return null;
           }
 

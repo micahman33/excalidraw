@@ -160,6 +160,35 @@ export const actionSetFrameAsActiveTool = register({
     event.key.toLocaleLowerCase() === KEYS.F,
 });
 
+export const actionSetPresentationFrameAsActiveTool = register({
+  name: "setPresentationFrameAsActiveTool",
+  label: "toolBar.presentationFrame",
+  trackEvent: { category: "toolbar" },
+  icon: frameToolIcon,
+  viewMode: false,
+  perform: (elements, appState, _, app) => {
+    const nextActiveTool = updateActiveTool(appState, {
+      type: "presentationFrame",
+    });
+
+    setCursorForShape(app.interactiveCanvas, {
+      ...appState,
+      activeTool: nextActiveTool,
+    });
+
+    return {
+      elements,
+      appState: {
+        ...appState,
+        activeTool: updateActiveTool(appState, {
+          type: "presentationFrame",
+        }),
+      },
+      captureUpdate: CaptureUpdateAction.EVENTUALLY,
+    };
+  },
+});
+
 export const actionWrapSelectionInFrame = register({
   name: "wrapSelectionInFrame",
   label: "labels.wrapSelectionInFrame",

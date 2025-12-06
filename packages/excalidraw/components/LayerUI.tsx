@@ -315,6 +315,7 @@ const LayerUI = ({
             </div>
           </Stack.Col>
           {!appState.viewModeEnabled &&
+            !appState.presentationMode.enabled &&
             appState.openDialog?.name !== "elementLinkSelector" && (
               <Section heading="shapes" className="shapes-section">
                 {(heading: React.ReactNode) => (

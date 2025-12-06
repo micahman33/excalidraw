@@ -94,4 +94,5 @@ export {
   actionStopPresentation,
   actionNextFrame,
   actionPreviousFrame,
+  actionReorderFrames,
 } from "./actionPresentation";

@@ -294,7 +294,9 @@ export const exportToBackend = async (
   if (!BACKEND_V2_POST) {
     return {
       url: null,
-      errorMessage: t("alerts.couldNotCreateShareableLink") + " (Backend not configured)",
+      errorMessage: `${t(
+        "alerts.couldNotCreateShareableLink",
+      )} (Backend not configured)`,
     };
   }
 
@@ -355,7 +357,7 @@ export const exportToBackend = async (
     console.error(error);
 
     // Check for CORS errors specifically
-    const isCorsError = 
+    const isCorsError =
       error?.message?.includes("CORS") ||
       error?.message?.includes("Failed to fetch") ||
       (error?.name === "TypeError" && error?.message?.includes("fetch"));
@@ -363,9 +365,9 @@ export const exportToBackend = async (
     if (isCorsError && BACKEND_V2_POST?.includes("json.excalidraw.com")) {
       return {
         url: null,
-        errorMessage: t("alerts.couldNotCreateShareableLink") + 
-          " (CORS error: The Excalidraw backend does not allow requests from custom domains. " +
-          "Please configure VITE_APP_BACKEND_V2_POST_URL to point to your own backend server.)",
+        errorMessage: `${t(
+          "alerts.couldNotCreateShareableLink",
+        )} (CORS error: The Excalidraw backend does not allow requests from custom domains. Please configure VITE_APP_BACKEND_V2_POST_URL to point to your own backend server.)`,
       };
     }
 
