@@ -1,0 +1,72 @@
+.excalidraw {
+  .LoginDialog {
+    &__form {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    &__field {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    &__label {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--color-on-surface);
+    }
+
+    &__input {
+      padding: 0.5rem 0.75rem;
+      border: 1px solid var(--default-border-color);
+      border-radius: var(--border-radius-md);
+      background-color: var(--input-bg-color);
+      color: var(--color-on-surface);
+      font-size: 0.875rem;
+      font-family: inherit;
+
+      &:focus {
+        outline: none;
+        border-color: var(--color-primary);
+      }
+    }
+
+    &__error {
+      padding: 0.75rem;
+      background-color: var(--color-danger-background);
+      color: var(--color-danger);
+      border-radius: var(--border-radius-md);
+      font-size: 0.875rem;
+    }
+
+    &__actions {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 0.5rem;
+    }
+
+    &__toggle {
+      text-align: center;
+      font-size: 0.875rem;
+      color: var(--color-on-surface);
+      margin-top: 0.5rem;
+    }
+
+    &__link {
+      background: none;
+      border: none;
+      color: var(--color-primary);
+      cursor: pointer;
+      text-decoration: underline;
+      font-size: inherit;
+      padding: 0;
+
+      &:hover {
+        color: var(--color-primary-darker);
+      }
+    }
+  }
+}
+

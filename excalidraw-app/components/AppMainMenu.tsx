@@ -7,7 +7,8 @@ import { isDevEnv } from "@excalidraw/common";
 import type { Theme } from "@excalidraw/element/types";
 
 import { LanguageList } from "../app-language/LanguageList";
-import { isExcalidrawPlusSignedUser } from "../app_constants";
+
+import { useAuth } from "../auth/AuthProvider";
 
 import { saveDebugState } from "./DebugCanvas";
 
@@ -18,7 +19,11 @@ export const AppMainMenu: React.FC<{
   theme: Theme | "system";
   setTheme: (theme: Theme | "system") => void;
   refresh: () => void;
+  onLoginClick?: () => void;
+  onCanvasGalleryClick?: () => void;
+  isAuthenticated?: boolean;
 }> = React.memo((props) => {
+  const { signOut } = useAuth();
   return (
     <MainMenu>
       <MainMenu.DefaultItems.LoadScene />
@@ -37,15 +42,33 @@ export const AppMainMenu: React.FC<{
       <MainMenu.DefaultItems.ClearCanvas />
       <MainMenu.Separator />
       <MainMenu.DefaultItems.Socials />
-      <MainMenu.ItemLink
-        icon={loginIcon}
-        href={`${import.meta.env.VITE_APP_PLUS_APP}${
-          isExcalidrawPlusSignedUser ? "" : "/sign-up"
-        }?utm_source=signin&utm_medium=app&utm_content=hamburger`}
-        className="highlighted"
-      >
-        {isExcalidrawPlusSignedUser ? "Sign in" : "Sign up"}
-      </MainMenu.ItemLink>
+      {props.isAuthenticated ? (
+        <>
+          <MainMenu.Item
+            icon={loginIcon}
+            onClick={props.onCanvasGalleryClick}
+            className="highlighted"
+          >
+            My Canvases
+          </MainMenu.Item>
+          <MainMenu.Item
+            onClick={async () => {
+              await signOut();
+              props.refresh();
+            }}
+          >
+            Sign Out
+          </MainMenu.Item>
+        </>
+      ) : (
+        <MainMenu.Item
+          icon={loginIcon}
+          onClick={props.onLoginClick}
+          className="highlighted"
+        >
+          Sign In / Sign Up
+        </MainMenu.Item>
+      )}
       {isDevEnv() && (
         <MainMenu.Item
           icon={eyeIcon}

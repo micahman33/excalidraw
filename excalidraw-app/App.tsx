@@ -96,10 +96,12 @@ import Collab, {
 import { AppFooter } from "./components/AppFooter";
 import { AppMainMenu } from "./components/AppMainMenu";
 import { AppWelcomeScreen } from "./components/AppWelcomeScreen";
-import {
-  ExportToExcalidrawPlus,
-  exportToExcalidrawPlus,
-} from "./components/ExportToExcalidrawPlus";
+import { LoginDialog } from "./components/LoginDialog";
+import { CanvasGallery } from "./components/CanvasGallery";
+import { SaveToMyCanvases } from "./components/SaveToMyCanvases";
+import { useAuth } from "./auth/AuthProvider";
+import { CanvasService, type Canvas } from "./data/CanvasService";
+import { exportToExcalidrawPlus } from "./components/ExportToExcalidrawPlus";
 import { TopErrorBoundary } from "./components/TopErrorBoundary";
 
 import {
@@ -662,6 +664,84 @@ const ExcalidrawWrapper = () => {
           }
         }
       });
+
+      // Auto-save to cloud if authenticated (debounced)
+      // Skip auto-save if we're currently loading a canvas to prevent duplicates
+      if (
+        user &&
+        excalidrawAPI &&
+        elements.length > 0 &&
+        !isLoadingCanvasRef.current
+      ) {
+        // Clear existing timeout
+        if (cloudSaveTimeoutRef.current) {
+          clearTimeout(cloudSaveTimeoutRef.current);
+        }
+
+        // Set new timeout
+        cloudSaveTimeoutRef.current = setTimeout(() => {
+          // Check localStorage for persisted currentCanvasId (in case of page refresh)
+          let canvasIdToUse = currentCanvasId;
+          if (!canvasIdToUse && typeof window !== "undefined") {
+            const storedId = localStorage.getItem("excalidraw_currentCanvasId");
+            if (storedId) {
+              canvasIdToUse = storedId;
+              setCurrentCanvasId(storedId);
+            }
+          }
+
+          // For existing canvases, always use the saved canvasName to preserve renames
+          // For new canvases, use getName() or fallback
+          const name = canvasIdToUse
+            ? canvasName || excalidrawAPI.getName() || "Untitled Canvas"
+            : excalidrawAPI.getName() || canvasName || "Untitled Canvas";
+
+          if (canvasIdToUse) {
+            // Update existing canvas - preserve the name that was set
+            CanvasService.updateCanvas(canvasIdToUse, user.id, {
+              name, // Use the name from state (which includes renames)
+              elements,
+              appState: {
+                ...appState,
+                name, // Also update appState name to keep in sync
+              },
+              files,
+            })
+              .then(({ canvas, error }) => {
+                if (canvas && !error) {
+                  // Update local state and Excalidraw's internal name to match what was saved
+                  if (canvas.name !== canvasName) {
+                    setCanvasName(canvas.name);
+                  }
+                  // Always sync Excalidraw's internal name with what's in the database
+                  excalidrawAPI.updateScene({
+                    appState: { name: canvas.name },
+                  });
+                }
+              })
+              .catch((error) => {
+                console.warn("Failed to save canvas to cloud:", error);
+              });
+          } else {
+            // Create new canvas
+            CanvasService.saveCanvas(user.id, name, elements, appState, files)
+              .then(({ canvas, error }) => {
+                if (canvas && !error) {
+                  setCurrentCanvasId(canvas.id);
+                  setCanvasName(canvas.name);
+                  // Update Excalidraw's internal name to match saved name
+                  excalidrawAPI.updateScene({
+                    appState: { name: canvas.name },
+                  });
+                }
+              })
+              .catch((error) => {
+                console.warn("Failed to save canvas to cloud:", error);
+              });
+          }
+          cloudSaveTimeoutRef.current = null;
+        }, 2000); // Wait 2 seconds before saving
+      }
     }
 
     // Render the debug scene if the debug canvas is available
@@ -776,6 +856,36 @@ const ExcalidrawWrapper = () => {
   const [latestShareableLink, setLatestShareableLink] = useState<string | null>(
     null,
   );
+
+  // Auth and canvas management state
+  const { user } = useAuth();
+  const [showLoginDialog, setShowLoginDialog] = useState(false);
+  const [showCanvasGallery, setShowCanvasGallery] = useState(false);
+  // Persist currentCanvasId in localStorage to survive page refreshes
+  const [currentCanvasId, setCurrentCanvasIdState] = useState<string | null>(
+    () => {
+      if (typeof window !== "undefined") {
+        const stored = localStorage.getItem("excalidraw_currentCanvasId");
+        return stored || null;
+      }
+      return null;
+    },
+  );
+
+  const setCurrentCanvasId = (id: string | null) => {
+    setCurrentCanvasIdState(id);
+    if (typeof window !== "undefined") {
+      if (id) {
+        localStorage.setItem("excalidraw_currentCanvasId", id);
+      } else {
+        localStorage.removeItem("excalidraw_currentCanvasId");
+      }
+    }
+  };
+
+  const [canvasName, setCanvasName] = useState<string>("Untitled Canvas");
+  const cloudSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isLoadingCanvasRef = useRef<boolean>(false);
 
   const onExportToBackend = async (
     exportedElements: readonly NonDeletedExcalidrawElement[],
@@ -920,11 +1030,12 @@ const ExcalidrawWrapper = () => {
               renderCustomUI: excalidrawAPI
                 ? (elements, appState, files) => {
                     return (
-                      <ExportToExcalidrawPlus
+                      <SaveToMyCanvases
                         elements={elements}
                         appState={appState}
                         files={files}
                         name={excalidrawAPI.getName()}
+                        currentCanvasId={currentCanvasId}
                         onError={(error) => {
                           excalidrawAPI?.updateScene({
                             appState: {
@@ -935,6 +1046,13 @@ const ExcalidrawWrapper = () => {
                         onSuccess={() => {
                           excalidrawAPI.updateScene({
                             appState: { openDialog: null },
+                          });
+                        }}
+                        onCanvasSaved={(canvasId, canvasName) => {
+                          setCurrentCanvasId(canvasId);
+                          setCanvasName(canvasName);
+                          excalidrawAPI.updateScene({
+                            appState: { name: canvasName },
                           });
                         }}
                       />
@@ -987,6 +1105,9 @@ const ExcalidrawWrapper = () => {
           theme={appTheme}
           setTheme={(theme) => setAppTheme(theme)}
           refresh={() => forceRefresh((prev) => !prev)}
+          onLoginClick={() => setShowLoginDialog(true)}
+          onCanvasGalleryClick={() => setShowCanvasGallery(true)}
+          isAuthenticated={!!user}
         />
         <AppWelcomeScreen
           onCollabDialogOpen={onCollabDialogOpen}
@@ -1036,6 +1157,123 @@ const ExcalidrawWrapper = () => {
         {excalidrawAPI && !isCollabDisabled && (
           <Collab excalidrawAPI={excalidrawAPI} />
         )}
+
+        <LoginDialog
+          isOpen={showLoginDialog}
+          onClose={() => setShowLoginDialog(false)}
+          onSuccess={() => {
+            // Refresh canvas list if gallery is open
+            if (showCanvasGallery) {
+              // Gallery will reload on its own
+            }
+          }}
+        />
+
+        <CanvasGallery
+          isOpen={showCanvasGallery}
+          onClose={() => setShowCanvasGallery(false)}
+          currentCanvasId={currentCanvasId}
+          onCanvasRenamed={(canvasId, newName) => {
+            // Update state when a canvas is renamed in the gallery
+            if (canvasId === currentCanvasId) {
+              setCanvasName(newName);
+              // Update Excalidraw's internal name
+              excalidrawAPI?.updateScene({
+                appState: { name: newName },
+              });
+            }
+          }}
+          onSelectCanvas={async (canvas: Canvas) => {
+            if (!excalidrawAPI || !user) {
+              return;
+            }
+
+            // Set loading flag to prevent auto-save from creating duplicates
+            isLoadingCanvasRef.current = true;
+
+            try {
+              const { data, error } = await CanvasService.loadCanvas(
+                canvas.id,
+                user.id,
+              );
+
+              if (error || !data) {
+                setErrorMessage(error?.message || "Failed to load canvas");
+                return;
+              }
+
+              // Get current state for proper restoration
+              const currentAppState = excalidrawAPI.getAppState();
+
+              // Load canvas into editor with proper restoration
+              // Merge with current appState to preserve theme and other local preferences
+              // IMPORTANT: Always use the name from the database, not from appState
+              const mergedAppState = data.appState
+                ? {
+                    ...currentAppState,
+                    ...data.appState,
+                    // Preserve some local state that shouldn't be overwritten
+                    theme: currentAppState.theme,
+                    viewBackgroundColor:
+                      data.appState.viewBackgroundColor ??
+                      currentAppState.viewBackgroundColor,
+                    // ALWAYS use the name from the database to preserve renames
+                    name: canvas.name,
+                  }
+                : {
+                    ...currentAppState,
+                    name: canvas.name,
+                  };
+
+              excalidrawAPI.updateScene({
+                elements: data.elements || [],
+                appState: mergedAppState as any,
+                captureUpdate: CaptureUpdateAction.NEVER,
+              });
+
+              // Add files if they exist
+              if (data.files && Object.keys(data.files).length > 0) {
+                const fileData = Object.values(data.files).map((file) => ({
+                  id: file.id,
+                  mimeType: file.mimeType,
+                  dataURL: file.dataURL,
+                  created: file.created,
+                  lastRetrieved: file.lastRetrieved,
+                }));
+                excalidrawAPI.addFiles(fileData);
+              }
+
+              // Update state - this ensures canvasName matches what's in the database
+              setCurrentCanvasId(canvas.id);
+              setCanvasName(canvas.name);
+              setShowCanvasGallery(false);
+
+              // Clear any pending auto-save timeouts
+              if (cloudSaveTimeoutRef.current) {
+                clearTimeout(cloudSaveTimeoutRef.current);
+                cloudSaveTimeoutRef.current = null;
+              }
+
+              // Wait a bit before allowing auto-save again to prevent immediate save after load
+              setTimeout(() => {
+                isLoadingCanvasRef.current = false;
+              }, 3000); // Wait 3 seconds after loading before allowing auto-save
+            } catch (err) {
+              isLoadingCanvasRef.current = false;
+              setErrorMessage("Failed to load canvas");
+            }
+          }}
+          onNewCanvas={() => {
+            if (excalidrawAPI) {
+              excalidrawAPI.updateScene({
+                elements: [],
+                appState: {},
+              });
+              setCurrentCanvasId(null);
+              setCanvasName("Untitled Canvas");
+            }
+          }}
+        />
 
         <ShareDialog
           collabAPI={collabAPI}
