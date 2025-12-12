@@ -169,7 +169,10 @@ export const MobileToolBar = ({
     if (showImageToolOutside && tool === "image") {
       return false;
     }
-    if (showFrameToolOutside && (tool === "frame" || tool === "presentationFrame")) {
+    if (
+      showFrameToolOutside &&
+      (tool === "frame" || tool === "presentationFrame")
+    ) {
       return false;
     }
     return true;

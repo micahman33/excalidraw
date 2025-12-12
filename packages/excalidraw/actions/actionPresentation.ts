@@ -1,12 +1,15 @@
 import { KEYS } from "@excalidraw/common";
 import { CaptureUpdateAction } from "@excalidraw/element";
-import { register } from "./register";
+
 import {
   getFramesInOrder,
   getNextFrameIndex,
   getPreviousFrameIndex,
 } from "../utils/presentation";
 import { t } from "../i18n";
+
+import { register } from "./register";
+
 import type { AppClassProperties, AppState } from "../types";
 
 export const actionStartPresentation = register({
@@ -29,17 +32,17 @@ export const actionStartPresentation = register({
 
     // Use custom order if it exists and is valid, otherwise use scene order
     let frames = appState.presentationMode.frames;
-    const sceneFrameIds = new Set(sceneFrames.map(f => f.id));
-    const prevFrameIds = new Set(frames.map(f => f.id));
-    
+    const sceneFrameIds = new Set(sceneFrames.map((f) => f.id));
+    const prevFrameIds = new Set(frames.map((f) => f.id));
+
     if (frames.length === 0) {
       // No custom order, use scene order
       frames = [...sceneFrames];
     } else {
       // Preserve custom order when frames change
-      const existingFrames = sceneFrames.filter(f => prevFrameIds.has(f.id));
-      const newFrames = sceneFrames.filter(f => !prevFrameIds.has(f.id));
-      
+      const existingFrames = sceneFrames.filter((f) => prevFrameIds.has(f.id));
+      const newFrames = sceneFrames.filter((f) => !prevFrameIds.has(f.id));
+
       if (existingFrames.length === 0 && newFrames.length > 0) {
         // All frames were replaced, use scene order
         frames = [...sceneFrames];
@@ -51,7 +54,7 @@ export const actionStartPresentation = register({
           const bOrder = customOrderMap.get(b.id) ?? Infinity;
           return aOrder - bOrder;
         });
-        
+
         frames = [...existingFrames, ...newFrames];
       }
     }
@@ -204,14 +207,14 @@ export const actionReorderFrames = register({
     // Get current frames - use presentationMode.frames if available and valid, otherwise get from scene
     const sceneFrames = getFramesInOrder(app.scene);
     let frames = appState.presentationMode.frames;
-    
+
     // If no custom order exists or frames have changed, use scene order
     if (frames.length === 0 || frames.length !== sceneFrames.length) {
       frames = [...sceneFrames]; // Create a copy
     } else {
       // Validate that all frames in custom order still exist
-      const sceneFrameIds = new Set(sceneFrames.map(f => f.id));
-      const allFramesExist = frames.every(f => sceneFrameIds.has(f.id));
+      const sceneFrameIds = new Set(sceneFrames.map((f) => f.id));
+      const allFramesExist = frames.every((f) => sceneFrameIds.has(f.id));
       if (!allFramesExist) {
         // Some frames were deleted, rebuild order keeping custom order where possible
         const customOrderMap = new Map(frames.map((f, idx) => [f.id, idx]));
@@ -230,8 +233,11 @@ export const actionReorderFrames = register({
       return { elements, appState, captureUpdate: CaptureUpdateAction.NEVER };
     }
 
-    const { fromIndex, toIndex } = value as { fromIndex: number; toIndex: number };
-    
+    const { fromIndex, toIndex } = value as {
+      fromIndex: number;
+      toIndex: number;
+    };
+
     if (
       fromIndex < 0 ||
       fromIndex >= frames.length ||
@@ -253,9 +259,15 @@ export const actionReorderFrames = register({
     if (appState.presentationMode.enabled) {
       if (currentFrameIndex === fromIndex) {
         newCurrentFrameIndex = toIndex;
-      } else if (fromIndex < currentFrameIndex && toIndex >= currentFrameIndex) {
+      } else if (
+        fromIndex < currentFrameIndex &&
+        toIndex >= currentFrameIndex
+      ) {
         newCurrentFrameIndex = currentFrameIndex - 1;
-      } else if (fromIndex > currentFrameIndex && toIndex <= currentFrameIndex) {
+      } else if (
+        fromIndex > currentFrameIndex &&
+        toIndex <= currentFrameIndex
+      ) {
         newCurrentFrameIndex = currentFrameIndex + 1;
       }
     }
@@ -274,4 +286,3 @@ export const actionReorderFrames = register({
     };
   },
 });
-

@@ -288,7 +288,7 @@ const _clearAppStateForStorage = <
 
 export const clearAppStateForLocalStorage = (appState: Partial<AppState>) => {
   const cleared = _clearAppStateForStorage(appState, "browser");
-  
+
   // Reset presentation mode state when saving, but preserve frame order
   if (cleared.presentationMode) {
     cleared.presentationMode = {
@@ -298,7 +298,7 @@ export const clearAppStateForLocalStorage = (appState: Partial<AppState>) => {
       // Keep frames array to preserve custom order
     };
   }
-  
+
   return cleared;
 };
 

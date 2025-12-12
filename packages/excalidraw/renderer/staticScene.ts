@@ -285,7 +285,9 @@ const _renderStaticScene = ({
   const isPresentationMode = appState.presentationMode?.enabled;
   const activeFrame =
     isPresentationMode &&
-    appState.presentationMode.frames[appState.presentationMode.currentFrameIndex];
+    appState.presentationMode.frames[
+      appState.presentationMode.currentFrameIndex
+    ];
 
   // Paint visible elements
   visibleElements

@@ -203,17 +203,11 @@ export class CanvasService {
           const blob = await canvasToBlob(canvas);
           const fileName = `${userId}/${canvasId}.png`;
 
-          // Try to remove existing file first (if it exists)
-          await supabase.storage
-            .from("thumbnails")
-            .remove([fileName]);
-
-          // Upload thumbnail
-          const { error: uploadError, data: uploadData } = await supabase.storage
-            .from("thumbnails")
-            .upload(fileName, blob, {
+          // Upload thumbnail with upsert to handle existing files
+          const { error: uploadError, data: uploadData } =
+            await supabase.storage.from("thumbnails").upload(fileName, blob, {
               contentType: "image/png",
-              upsert: false,
+              upsert: true, // Allow overwriting existing thumbnails
             });
 
           if (!uploadError && uploadData) {
@@ -242,6 +236,39 @@ export class CanvasService {
 
       if (error) {
         return { canvas: null, error };
+      }
+
+      return { canvas: data as Canvas, error: null };
+    } catch (error: any) {
+      return { canvas: null, error };
+    }
+  }
+
+  /**
+   * Get canvas metadata (name, etc.) without loading full data
+   */
+  static async getCanvasMetadata(
+    canvasId: string,
+    userId: string,
+  ): Promise<{ canvas: Canvas | null; error: any }> {
+    if (!supabase) {
+      return { canvas: null, error: { message: "Supabase not configured" } };
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from("canvases")
+        .select("id, user_id, name, thumbnail_url, created_at, updated_at")
+        .eq("id", canvasId)
+        .eq("user_id", userId)
+        .single();
+
+      if (error) {
+        return { canvas: null, error };
+      }
+
+      if (!data) {
+        return { canvas: null, error: { message: "Canvas not found" } };
       }
 
       return { canvas: data as Canvas, error: null };

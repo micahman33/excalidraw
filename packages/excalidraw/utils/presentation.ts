@@ -21,7 +21,9 @@ export const getNextFrameIndex = (
   currentIndex: number,
   totalFrames: number,
 ): number => {
-  if (totalFrames === 0) return 0;
+  if (totalFrames === 0) {
+    return 0;
+  }
   return (currentIndex + 1) % totalFrames;
 };
 
@@ -32,7 +34,8 @@ export const getPreviousFrameIndex = (
   currentIndex: number,
   totalFrames: number,
 ): number => {
-  if (totalFrames === 0) return 0;
+  if (totalFrames === 0) {
+    return 0;
+  }
   return currentIndex === 0 ? totalFrames - 1 : currentIndex - 1;
 };
-

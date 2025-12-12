@@ -634,6 +634,74 @@ const ExcalidrawWrapper = () => {
       collabAPI.syncElements(elements);
     }
 
+    // Detect when a new file is loaded by checking if fileHandle name changed
+    // This happens when user loads a file via "Load Scene" menu
+    // FileSystemHandle has a .name property (synchronous access)
+    const fileHandle = appState.fileHandle as FileSystemHandle | File | null;
+    let currentFileName: string | undefined;
+
+    if (fileHandle) {
+      // FileSystemHandle (from browser-fs-access) has a .name property
+      // File objects also have .name property
+      try {
+        // Try accessing .name property (works for both FileSystemHandle and File)
+        if ("name" in fileHandle && typeof fileHandle.name === "string") {
+          currentFileName = fileHandle.name;
+        }
+      } catch (e) {
+        // If accessing name fails, try as File object
+        if (fileHandle instanceof File) {
+          currentFileName = fileHandle.name;
+        }
+      }
+    }
+
+    // Detect new file load: fileHandle exists and name has changed
+    if (currentFileName && currentFileName !== lastFileHandleNameRef.current) {
+      console.log(
+        "[Canvas] Detected new file load:",
+        currentFileName,
+        "Previous:",
+        lastFileHandleNameRef.current,
+      );
+      lastFileHandleNameRef.current = currentFileName;
+
+      // Remove .excalidraw extension if present
+      let fileName = currentFileName;
+      if (fileName.endsWith(".excalidraw")) {
+        fileName = fileName.slice(0, -11); // Remove '.excalidraw'
+      } else if (fileName.endsWith(".json")) {
+        fileName = fileName.slice(0, -5); // Remove '.json'
+      }
+
+      console.log("[Canvas] Setting canvas name from filename:", fileName);
+
+      // IMPORTANT: Clear currentCanvasId so we create a new canvas instead of updating existing
+      // This must happen before any auto-save logic runs
+      setCurrentCanvasId(null);
+      isNewFileLoadedRef.current = true; // Mark that we've loaded a new file
+
+      // Clear any pending auto-save timeouts to prevent saving to old canvas
+      if (cloudSaveTimeoutRef.current) {
+        clearTimeout(cloudSaveTimeoutRef.current);
+        cloudSaveTimeoutRef.current = null;
+      }
+
+      // Set the canvas name from the filename
+      setCanvasName(fileName || "Untitled Canvas");
+
+      // Update Excalidraw's internal name immediately
+      if (excalidrawAPI) {
+        excalidrawAPI.updateScene({
+          appState: { name: fileName || "Untitled Canvas" },
+        });
+      }
+    } else if (!currentFileName && lastFileHandleNameRef.current) {
+      // File handle was cleared (e.g., when loading from gallery)
+      lastFileHandleNameRef.current = null;
+      isNewFileLoadedRef.current = false;
+    }
+
     // this check is redundant, but since this is a hot path, it's best
     // not to evaludate the nested expression every time
     if (!LocalData.isSavePaused()) {
@@ -680,9 +748,20 @@ const ExcalidrawWrapper = () => {
 
         // Set new timeout
         cloudSaveTimeoutRef.current = setTimeout(() => {
-          // Check localStorage for persisted currentCanvasId (in case of page refresh)
+          // Get the current canvasId from state
+          // Only check localStorage on page refresh (when currentCanvasId is null in state
+          // but exists in localStorage), not when we've explicitly cleared it for a new file
           let canvasIdToUse = currentCanvasId;
-          if (!canvasIdToUse && typeof window !== "undefined") {
+          
+          // Only restore from localStorage if:
+          // 1. currentCanvasId is null in state
+          // 2. We're NOT in a "new file loaded" state
+          // 3. There's a stored ID in localStorage
+          if (
+            !canvasIdToUse &&
+            typeof window !== "undefined" &&
+            !isNewFileLoadedRef.current
+          ) {
             const storedId = localStorage.getItem("excalidraw_currentCanvasId");
             if (storedId) {
               canvasIdToUse = storedId;
@@ -729,6 +808,7 @@ const ExcalidrawWrapper = () => {
                 if (canvas && !error) {
                   setCurrentCanvasId(canvas.id);
                   setCanvasName(canvas.name);
+                  isNewFileLoadedRef.current = false; // Clear the flag once saved
                   // Update Excalidraw's internal name to match saved name
                   excalidrawAPI.updateScene({
                     appState: { name: canvas.name },
@@ -883,9 +963,60 @@ const ExcalidrawWrapper = () => {
     }
   };
 
-  const [canvasName, setCanvasName] = useState<string>("Untitled Canvas");
+  const [canvasName, setCanvasNameState] = useState<string>(() => {
+    // Try to load canvas name from localStorage on init
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("excalidraw_canvasName");
+      return stored || "Untitled Canvas";
+    }
+    return "Untitled Canvas";
+  });
+
+  const setCanvasName = (name: string) => {
+    setCanvasNameState(name);
+    if (typeof window !== "undefined") {
+      if (name && name !== "Untitled Canvas") {
+        localStorage.setItem("excalidraw_canvasName", name);
+      } else {
+        localStorage.removeItem("excalidraw_canvasName");
+      }
+    }
+  };
+
   const cloudSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isLoadingCanvasRef = useRef<boolean>(false);
+  // Track the last fileHandle name to detect when a new file is loaded
+  const lastFileHandleNameRef = useRef<string | null>(null);
+  // Track if we've explicitly cleared currentCanvasId for a new file (prevents restoring from localStorage)
+  const isNewFileLoadedRef = useRef<boolean>(false);
+
+  // On mount and when currentCanvasId changes, load the canvas name from database
+  // This ensures that after refresh, we have the correct name from the database
+  useEffect(() => {
+    const loadCanvasName = async () => {
+      if (currentCanvasId && user && excalidrawAPI) {
+        try {
+          const { canvas, error } = await CanvasService.getCanvasMetadata(
+            currentCanvasId,
+            user.id,
+          );
+
+          if (!error && canvas) {
+            setCanvasName(canvas.name);
+            // Also update Excalidraw's internal name
+            excalidrawAPI.updateScene({
+              appState: { name: canvas.name },
+            });
+          }
+        } catch (error) {
+          console.warn("Failed to load canvas name on refresh:", error);
+        }
+      }
+    };
+
+    loadCanvasName();
+  }, [currentCanvasId, user, excalidrawAPI]);
+
 
   const onExportToBackend = async (
     exportedElements: readonly NonDeletedExcalidrawElement[],
@@ -1248,6 +1379,10 @@ const ExcalidrawWrapper = () => {
               setCanvasName(canvas.name);
               setShowCanvasGallery(false);
 
+              // Clear file handle tracking since we're loading from database, not file
+              lastFileHandleNameRef.current = null;
+              isNewFileLoadedRef.current = false; // Not a new file, loading from gallery
+
               // Clear any pending auto-save timeouts
               if (cloudSaveTimeoutRef.current) {
                 clearTimeout(cloudSaveTimeoutRef.current);
@@ -1271,6 +1406,9 @@ const ExcalidrawWrapper = () => {
               });
               setCurrentCanvasId(null);
               setCanvasName("Untitled Canvas");
+              // Clear file handle tracking for new canvas
+              lastFileHandleNameRef.current = null;
+              isNewFileLoadedRef.current = false; // New canvas, not a loaded file
             }
           }}
         />

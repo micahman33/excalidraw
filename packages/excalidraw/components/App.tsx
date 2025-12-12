@@ -3214,35 +3214,37 @@ class App extends React.Component<AppProps, AppState> {
       const sceneFrames = getFramesInOrder(this.scene);
       const prevFrames = prevState.presentationMode.frames;
       const currentFrameIndex = this.state.presentationMode.currentFrameIndex;
-      
+
       // Preserve custom order when frames change
       let frames = prevFrames;
-      const sceneFrameIds = new Set(sceneFrames.map(f => f.id));
-      const prevFrameIds = new Set(prevFrames.map(f => f.id));
-      
+      const sceneFrameIds = new Set(sceneFrames.map((f) => f.id));
+      const prevFrameIds = new Set(prevFrames.map((f) => f.id));
+
       // Check if frames have changed
       const framesChanged =
         sceneFrames.length !== prevFrames.length ||
         !sceneFrameIds.size ||
-        !prevFrames.every(f => sceneFrameIds.has(f.id)) ||
-        !sceneFrames.every(f => prevFrameIds.has(f.id));
-      
+        !prevFrames.every((f) => sceneFrameIds.has(f.id)) ||
+        !sceneFrames.every((f) => prevFrameIds.has(f.id));
+
       if (framesChanged) {
         // Build new frame order preserving custom order where possible
         const customOrderMap = new Map(prevFrames.map((f, idx) => [f.id, idx]));
-        const existingFrames = sceneFrames.filter(f => prevFrameIds.has(f.id));
-        const newFrames = sceneFrames.filter(f => !prevFrameIds.has(f.id));
-        
+        const existingFrames = sceneFrames.filter((f) =>
+          prevFrameIds.has(f.id),
+        );
+        const newFrames = sceneFrames.filter((f) => !prevFrameIds.has(f.id));
+
         // Sort existing frames by custom order, then append new frames
         existingFrames.sort((a, b) => {
           const aOrder = customOrderMap.get(a.id) ?? Infinity;
           const bOrder = customOrderMap.get(b.id) ?? Infinity;
           return aOrder - bOrder;
         });
-        
+
         frames = [...existingFrames, ...newFrames];
       }
-      
+
       const currentFrame = frames[currentFrameIndex];
 
       // Update frameToHighlight to highlight the current frame
@@ -3274,7 +3276,10 @@ class App extends React.Component<AppProps, AppState> {
           frameToHighlight: updatedFrame || null,
         });
       }
-    } else if (prevState.presentationMode.enabled && !this.state.presentationMode.enabled) {
+    } else if (
+      prevState.presentationMode.enabled &&
+      !this.state.presentationMode.enabled
+    ) {
       // Presentation mode was disabled, clear frame highlight
       this.setState({ frameToHighlight: null });
     }
@@ -4814,18 +4819,19 @@ class App extends React.Component<AppProps, AppState> {
         isHoldingSpace = true;
         setCursor(this.interactiveCanvas, CURSOR_TYPE.GRAB);
       }
-      
+
       // Allow space bar panning in presentation mode - don't let navigation actions
       // consume space key if user is already dragging (gesture.pointers.size > 0)
       // Navigation should only work on simple space keypress, not space+drag
       const isSpaceKey = event.key === KEYS.SPACE;
       const isDragging = gesture.pointers.size > 0;
-      const shouldSkipActionForPanning = 
-        this.state.presentationMode.enabled && 
-        isSpaceKey && 
-        isDragging;
-      
-      if (!shouldSkipActionForPanning && this.actionManager.handleKeyDown(event)) {
+      const shouldSkipActionForPanning =
+        this.state.presentationMode.enabled && isSpaceKey && isDragging;
+
+      if (
+        !shouldSkipActionForPanning &&
+        this.actionManager.handleKeyDown(event)
+      ) {
         // If action executed and we're not dragging, navigation happened
         // If we're dragging, panning will take over
         if (isSpaceKey && isDragging) {

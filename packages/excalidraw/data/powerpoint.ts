@@ -43,7 +43,9 @@ export const exportToPowerPoint = async (
   const frames = getFrameLikeElements(nonDeletedElements);
 
   if (frames.length === 0) {
-    throw new Error("No frames found. Please create frames to export as PowerPoint slides.");
+    throw new Error(
+      "No frames found. Please create frames to export as PowerPoint slides.",
+    );
   }
 
   const pptx = new PptxGenJS();
@@ -65,32 +67,30 @@ export const exportToPowerPoint = async (
     const slide = pptx.addSlide();
 
     // Get elements that belong to this frame
-    const frameElements = getElementsOverlappingFrame(nonDeletedElements, frame);
+    const frameElements = getElementsOverlappingFrame(
+      nonDeletedElements,
+      frame,
+    );
 
     // Separate text and non-text elements
     const textElements = frameElements.filter(
       (el): el is ExcalidrawTextElement => isTextElement(el),
     );
-    const nonTextElements = frameElements.filter(
-      (el) => !isTextElement(el),
-    );
+    const nonTextElements = frameElements.filter((el) => !isTextElement(el));
 
     console.log(
-      `Frame ${i + 1}: Found ${textElements.length} text elements, ${nonTextElements.length} non-text elements`,
+      `Frame ${i + 1}: Found ${textElements.length} text elements, ${
+        nonTextElements.length
+      } non-text elements`,
     );
 
     // Export frame as image WITHOUT text elements (text will be added as editable boxes)
-    const canvas = await exportToCanvas(
-      nonTextElements,
-      appState,
-      files,
-      {
-        exportBackground: options.exportBackground,
-        viewBackgroundColor: options.viewBackgroundColor,
-        exportPadding: 0,
-        exportingFrame: frame,
-      },
-    );
+    const canvas = await exportToCanvas(nonTextElements, appState, files, {
+      exportBackground: options.exportBackground,
+      viewBackgroundColor: options.viewBackgroundColor,
+      exportPadding: 0,
+      exportingFrame: frame,
+    });
 
     // Convert canvas to base64 image
     const blob = await canvasToBlob(canvas);
@@ -150,12 +150,16 @@ export const exportToPowerPoint = async (
       // Skip empty text elements
       const textContent = textEl.text || textEl.originalText || "";
       if (!textContent || textContent.trim() === "") {
-        console.log(`Skipping empty text element at (${textEl.x}, ${textEl.y})`);
+        console.log(
+          `Skipping empty text element at (${textEl.x}, ${textEl.y})`,
+        );
         continue;
       }
 
       console.log(
-        `Adding text: "${textContent.substring(0, 50)}..." at (${textEl.x}, ${textEl.y})`,
+        `Adding text: "${textContent.substring(0, 50)}..." at (${textEl.x}, ${
+          textEl.y
+        })`,
       );
 
       // Get text element position relative to frame
@@ -219,4 +223,3 @@ export const exportToPowerPoint = async (
 
   return pptxBlob as Blob;
 };
-
