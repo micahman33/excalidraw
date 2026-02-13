@@ -97,6 +97,7 @@ import { AppFooter } from "./components/AppFooter";
 import { AppMainMenu } from "./components/AppMainMenu";
 import { AppWelcomeScreen } from "./components/AppWelcomeScreen";
 import { LoginDialog } from "./components/LoginDialog";
+import { CanvasNameDialog } from "./components/CanvasNameDialog";
 import { CanvasGallery } from "./components/CanvasGallery";
 import { SaveToMyCanvases } from "./components/SaveToMyCanvases";
 import { useAuth } from "./auth/AuthProvider";
@@ -747,79 +748,107 @@ const ExcalidrawWrapper = () => {
         }
 
         // Set new timeout
-        cloudSaveTimeoutRef.current = setTimeout(() => {
-          // Get the current canvasId from state
-          // Only check localStorage on page refresh (when currentCanvasId is null in state
-          // but exists in localStorage), not when we've explicitly cleared it for a new file
-          let canvasIdToUse = currentCanvasId;
-          
-          // Only restore from localStorage if:
-          // 1. currentCanvasId is null in state
-          // 2. We're NOT in a "new file loaded" state
-          // 3. There's a stored ID in localStorage
-          if (
-            !canvasIdToUse &&
-            typeof window !== "undefined" &&
-            !isNewFileLoadedRef.current
-          ) {
-            const storedId = localStorage.getItem("excalidraw_currentCanvasId");
-            if (storedId) {
-              canvasIdToUse = storedId;
-              setCurrentCanvasId(storedId);
+        cloudSaveTimeoutRef.current = setTimeout(async () => {
+          // CRITICAL: Prevent concurrent saves to avoid duplicate canvas creation
+          if (isSavingCanvasRef.current) {
+            console.log("[Auto-save] Save already in progress, skipping...");
+            cloudSaveTimeoutRef.current = null;
+            return;
+          }
+
+          console.log("[Auto-save] Starting auto-save...");
+          isSavingCanvasRef.current = true;
+
+          try {
+            // Get the current canvasId from state
+            // Only check localStorage on page refresh (when currentCanvasId is null in state
+            // but exists in localStorage), not when we've explicitly cleared it for a new file
+            let canvasIdToUse = currentCanvasId;
+
+            // Only restore from localStorage if:
+            // 1. currentCanvasId is null in state
+            // 2. We're NOT in a "new file loaded" state
+            // 3. There's a stored ID in localStorage
+            if (
+              !canvasIdToUse &&
+              typeof window !== "undefined" &&
+              !isNewFileLoadedRef.current
+            ) {
+              const storedId = localStorage.getItem("excalidraw_currentCanvasId");
+              if (storedId) {
+                canvasIdToUse = storedId;
+                setCurrentCanvasId(storedId);
+              }
             }
-          }
 
-          // For existing canvases, always use the saved canvasName to preserve renames
-          // For new canvases, use getName() or fallback
-          const name = canvasIdToUse
-            ? canvasName || excalidrawAPI.getName() || "Untitled Canvas"
-            : excalidrawAPI.getName() || canvasName || "Untitled Canvas";
+            // For existing canvases, always use the saved canvasName to preserve renames
+            // For new canvases, use getName() or fallback
+            const name = canvasIdToUse
+              ? canvasName || excalidrawAPI.getName() || "Untitled Canvas"
+              : excalidrawAPI.getName() || canvasName || "Untitled Canvas";
 
-          if (canvasIdToUse) {
-            // Update existing canvas - preserve the name that was set
-            CanvasService.updateCanvas(canvasIdToUse, user.id, {
-              name, // Use the name from state (which includes renames)
-              elements,
-              appState: {
-                ...appState,
-                name, // Also update appState name to keep in sync
-              },
-              files,
-            })
-              .then(({ canvas, error }) => {
-                if (canvas && !error) {
-                  // Update local state and Excalidraw's internal name to match what was saved
-                  if (canvas.name !== canvasName) {
-                    setCanvasName(canvas.name);
-                  }
-                  // Always sync Excalidraw's internal name with what's in the database
-                  excalidrawAPI.updateScene({
-                    appState: { name: canvas.name },
-                  });
-                }
-              })
-              .catch((error) => {
-                console.warn("Failed to save canvas to cloud:", error);
-              });
-          } else {
-            // Create new canvas
-            CanvasService.saveCanvas(user.id, name, elements, appState, files)
-              .then(({ canvas, error }) => {
-                if (canvas && !error) {
-                  setCurrentCanvasId(canvas.id);
+            if (canvasIdToUse) {
+              console.log(`[Auto-save] Updating canvas: ${canvasIdToUse}`);
+              // Update existing canvas - preserve the name that was set
+              const { canvas, error } = await CanvasService.updateCanvas(
+                canvasIdToUse,
+                user.id,
+                {
+                  name, // Use the name from state (which includes renames)
+                  elements,
+                  appState: {
+                    ...appState,
+                    name, // Also update appState name to keep in sync
+                  },
+                  files,
+                },
+              );
+
+              if (canvas && !error) {
+                console.log(`[Auto-save] ✓ Canvas updated successfully: ${name}`);
+                // Update local state and Excalidraw's internal name to match what was saved
+                if (canvas.name !== canvasName) {
                   setCanvasName(canvas.name);
-                  isNewFileLoadedRef.current = false; // Clear the flag once saved
-                  // Update Excalidraw's internal name to match saved name
-                  excalidrawAPI.updateScene({
-                    appState: { name: canvas.name },
-                  });
                 }
-              })
-              .catch((error) => {
-                console.warn("Failed to save canvas to cloud:", error);
-              });
+                // Always sync Excalidraw's internal name with what's in the database
+                excalidrawAPI.updateScene({
+                  appState: { name: canvas.name },
+                });
+              } else if (error) {
+                console.warn("[Auto-save] ✗ Failed to update canvas:", error);
+              }
+            } else {
+              console.log(`[Auto-save] Creating new canvas: ${name}`);
+              // Create new canvas
+              const { canvas, error } = await CanvasService.saveCanvas(
+                user.id,
+                name,
+                elements,
+                appState,
+                files,
+              );
+
+              if (canvas && !error) {
+                setCurrentCanvasId(canvas.id);
+                setCanvasName(canvas.name);
+                isNewFileLoadedRef.current = false; // Clear the flag once saved
+                // Update Excalidraw's internal name to match saved name
+                excalidrawAPI.updateScene({
+                  appState: { name: canvas.name },
+                });
+                console.log(`[Auto-save] ✓ Canvas created successfully: ${canvas.name} (${canvas.id})`);
+              } else if (error) {
+                console.warn("[Auto-save] ✗ Failed to create canvas:", error);
+              }
+            }
+          } catch (error) {
+            console.error("[Auto-save] ✗ Error:", error);
+          } finally {
+            // Always clear the saving flag
+            console.log("[Auto-save] Clearing save lock");
+            isSavingCanvasRef.current = false;
+            cloudSaveTimeoutRef.current = null;
           }
-          cloudSaveTimeoutRef.current = null;
         }, 2000); // Wait 2 seconds before saving
       }
     }
@@ -941,6 +970,7 @@ const ExcalidrawWrapper = () => {
   const { user } = useAuth();
   const [showLoginDialog, setShowLoginDialog] = useState(false);
   const [showCanvasGallery, setShowCanvasGallery] = useState(false);
+  const [showCanvasNameDialog, setShowCanvasNameDialog] = useState(false);
   // Persist currentCanvasId in localStorage to survive page refreshes
   const [currentCanvasId, setCurrentCanvasIdState] = useState<string | null>(
     () => {
@@ -985,6 +1015,7 @@ const ExcalidrawWrapper = () => {
 
   const cloudSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isLoadingCanvasRef = useRef<boolean>(false);
+  const isSavingCanvasRef = useRef<boolean>(false); // Prevent concurrent saves
   // Track the last fileHandle name to detect when a new file is loaded
   const lastFileHandleNameRef = useRef<string | null>(null);
   // Track if we've explicitly cleared currentCanvasId for a new file (prevents restoring from localStorage)
@@ -1017,6 +1048,139 @@ const ExcalidrawWrapper = () => {
     loadCanvasName();
   }, [currentCanvasId, user, excalidrawAPI]);
 
+  // Handler to create a new canvas with a user-provided name
+  const handleCreateNewCanvas = (name: string) => {
+    if (excalidrawAPI) {
+      // IMPORTANT: Set state BEFORE updating scene to avoid race conditions
+      setCurrentCanvasId(null);
+      setCanvasName(name);
+      lastFileHandleNameRef.current = null;
+      // Set to true to prevent auto-save from restoring old canvasId from localStorage
+      isNewFileLoadedRef.current = true;
+
+      // Clear any pending auto-save timeouts to prevent saving with old name
+      if (cloudSaveTimeoutRef.current) {
+        clearTimeout(cloudSaveTimeoutRef.current);
+        cloudSaveTimeoutRef.current = null;
+      }
+
+      // Update scene with new name in a SINGLE call to avoid race conditions
+      excalidrawAPI.updateScene({
+        elements: [],
+        appState: { name },
+      });
+    }
+  };
+
+  // Handler for manual save button
+  const handleManualSave = async () => {
+    if (!user || !excalidrawAPI) {
+      console.log("[Manual save] No user or API available");
+      return;
+    }
+
+    // Prevent concurrent saves
+    if (isSavingCanvasRef.current) {
+      console.log("[Manual save] Save already in progress, skipping...");
+      return;
+    }
+
+    console.log("[Manual save] Starting save...");
+    isSavingCanvasRef.current = true;
+
+    try {
+      const elements = excalidrawAPI.getSceneElements();
+      const appState = excalidrawAPI.getAppState();
+      const files = excalidrawAPI.getFiles();
+
+      if (elements.length === 0) {
+        console.log("[Manual save] No elements to save, skipping");
+        return;
+      }
+
+      const name = canvasName || excalidrawAPI.getName() || "Untitled Canvas";
+
+      if (currentCanvasId) {
+        console.log(`[Manual save] Updating canvas: ${currentCanvasId}`);
+        // Update existing canvas
+        const { error } = await CanvasService.updateCanvas(
+          currentCanvasId,
+          user.id,
+          {
+            name,
+            elements,
+            appState: { ...appState, name },
+            files,
+          },
+        );
+
+        if (error) {
+          throw new Error(error.message || "Failed to save canvas");
+        }
+        console.log(`[Manual save] ✓ Canvas updated successfully: ${name}`);
+      } else {
+        console.log(`[Manual save] Creating new canvas: ${name}`);
+        // Create new canvas
+        const { canvas, error } = await CanvasService.saveCanvas(
+          user.id,
+          name,
+          elements,
+          appState,
+          files,
+        );
+
+        if (error) {
+          throw new Error(error.message || "Failed to save canvas");
+        }
+
+        if (canvas) {
+          setCurrentCanvasId(canvas.id);
+          setCanvasName(canvas.name);
+          isNewFileLoadedRef.current = false;
+          excalidrawAPI.updateScene({
+            appState: { name: canvas.name },
+          });
+          console.log(`[Manual save] ✓ Canvas created successfully: ${canvas.name} (${canvas.id})`);
+        }
+      }
+    } catch (error: any) {
+      console.error("[Manual save] ✗ Failed:", error);
+      setErrorMessage(error.message || "Failed to save canvas");
+    } finally {
+      // Always clear the saving flag
+      console.log("[Manual save] Clearing save lock");
+      isSavingCanvasRef.current = false;
+    }
+  };
+
+  // Handler for exporting frames as PDF
+  const handleExportFramesPDF = async () => {
+    if (!excalidrawAPI) {
+      return;
+    }
+
+    try {
+      const { exportAndDownloadFramesPDF } = await import(
+        "./data/exportFramesToPdf"
+      );
+
+      const elements = excalidrawAPI.getSceneElements();
+      const appState = excalidrawAPI.getAppState();
+      const files = excalidrawAPI.getFiles();
+      const scene = excalidrawAPI.getSceneElementsIncludingDeleted() as any;
+
+      await exportAndDownloadFramesPDF({
+        scene: { getNonDeletedFramesLikes: () => scene.filter((el: any) => el.type === "frame" && !el.isDeleted) } as any,
+        elements,
+        appState: appState as any,
+        files,
+        canvasName: canvasName || "presentation",
+      });
+    } catch (error: any) {
+      console.error("Failed to export frames as PDF:", error);
+      setErrorMessage(error.message || "Failed to export frames as PDF");
+    }
+  };
 
   const onExportToBackend = async (
     exportedElements: readonly NonDeletedExcalidrawElement[],
@@ -1239,6 +1403,8 @@ const ExcalidrawWrapper = () => {
           onLoginClick={() => setShowLoginDialog(true)}
           onCanvasGalleryClick={() => setShowCanvasGallery(true)}
           isAuthenticated={!!user}
+          onNewCanvas={() => setShowCanvasNameDialog(true)}
+          onExportFramesPDF={handleExportFramesPDF}
         />
         <AppWelcomeScreen
           onCollabDialogOpen={onCollabDialogOpen}
@@ -1264,7 +1430,12 @@ const ExcalidrawWrapper = () => {
             </OverwriteConfirmDialog.Action>
           )}
         </OverwriteConfirmDialog>
-        <AppFooter onChange={() => excalidrawAPI?.refresh()} />
+        <AppFooter
+          onChange={() => excalidrawAPI?.refresh()}
+          onManualSave={user ? handleManualSave : undefined}
+          canvasName={canvasName}
+          isAuthenticated={!!user}
+        />
         {excalidrawAPI && <AIComponents excalidrawAPI={excalidrawAPI} />}
 
         <TTDDialogTrigger />
@@ -1298,6 +1469,18 @@ const ExcalidrawWrapper = () => {
               // Gallery will reload on its own
             }
           }}
+        />
+
+        <CanvasNameDialog
+          isOpen={showCanvasNameDialog}
+          onClose={() => setShowCanvasNameDialog(false)}
+          onConfirm={(name) => {
+            handleCreateNewCanvas(name);
+            setShowCanvasNameDialog(false);
+            // Close the canvas gallery if it was open
+            setShowCanvasGallery(false);
+          }}
+          defaultName="Untitled Canvas"
         />
 
         <CanvasGallery
@@ -1398,19 +1581,7 @@ const ExcalidrawWrapper = () => {
               setErrorMessage("Failed to load canvas");
             }
           }}
-          onNewCanvas={() => {
-            if (excalidrawAPI) {
-              excalidrawAPI.updateScene({
-                elements: [],
-                appState: {},
-              });
-              setCurrentCanvasId(null);
-              setCanvasName("Untitled Canvas");
-              // Clear file handle tracking for new canvas
-              lastFileHandleNameRef.current = null;
-              isNewFileLoadedRef.current = false; // New canvas, not a loaded file
-            }
-          }}
+          onNewCanvas={() => setShowCanvasNameDialog(true)}
         />
 
         <ShareDialog

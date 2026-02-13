@@ -38,7 +38,8 @@ export class CanvasService {
 
     try {
       // Serialize canvas data (serializeAsJSON already returns a JSON string)
-      const dataString = serializeAsJSON(elements, appState, files, "database");
+      // Use "local" type to include files (images) in the serialized data
+      const dataString = serializeAsJSON(elements, appState, files, "local");
 
       // Generate thumbnail
       let thumbnailUrl: string | null = null;
@@ -179,11 +180,12 @@ export class CanvasService {
           ...updates.appState,
           name: updates.name || updates.appState.name,
         };
+        // Use "local" type to include files (images) in the serialized data
         const canvasData = serializeAsJSON(
           updates.elements,
           appStateWithName,
           updates.files,
-          "database",
+          "local",
         );
         updateData.data = canvasData; // serializeAsJSON already returns a string
 

@@ -1,4 +1,9 @@
-import { loginIcon, eyeIcon } from "@excalidraw/excalidraw/components/icons";
+import {
+  loginIcon,
+  eyeIcon,
+  PlusIcon,
+  ExportIcon,
+} from "@excalidraw/excalidraw/components/icons";
 import { MainMenu } from "@excalidraw/excalidraw/index";
 import React from "react";
 
@@ -21,15 +26,27 @@ export const AppMainMenu: React.FC<{
   refresh: () => void;
   onLoginClick?: () => void;
   onCanvasGalleryClick?: () => void;
+  onNewCanvas?: () => void;
+  onExportFramesPDF?: () => void;
   isAuthenticated?: boolean;
 }> = React.memo((props) => {
   const { signOut } = useAuth();
   return (
     <MainMenu>
+      {props.onNewCanvas && (
+        <MainMenu.Item icon={PlusIcon} onClick={props.onNewCanvas}>
+          New
+        </MainMenu.Item>
+      )}
       <MainMenu.DefaultItems.LoadScene />
       <MainMenu.DefaultItems.SaveToActiveFile />
       <MainMenu.DefaultItems.Export />
       <MainMenu.DefaultItems.SaveAsImage />
+      {props.onExportFramesPDF && (
+        <MainMenu.Item icon={ExportIcon} onClick={props.onExportFramesPDF}>
+          Export Frames as PDF
+        </MainMenu.Item>
+      )}
       {props.isCollabEnabled && (
         <MainMenu.DefaultItems.LiveCollaborationTrigger
           isCollaborating={props.isCollaborating}
